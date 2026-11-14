@@ -1238,6 +1238,19 @@ rwx_auth() {
     record SKIP rwx-auth "rwx not installed — skipping auth (see the rwx install row above)"
     return 0
   fi
+  # No plain token? Pick RWX_ACCESS_TOKEN_<OWNER> (or RWC_) for the repo owner
+  # parsed from origin; the sandbox injects only the suffixed names.
+  if [[ -z "${RWX_ACCESS_TOKEN:-}" ]]; then
+    local owner_url owner owner_token
+    owner_url="$(git remote get-url origin 2>/dev/null || true)"
+    owner="$(printf '%s' "${owner_url}" | sed -E 's#.*[:/]([^/]+)/[^/]+$#\1#' | tr 'a-z-' 'A-Z_')"
+    if [[ -n "${owner}" ]]; then
+      owner_token="$(printenv "RWX_ACCESS_TOKEN_${owner}" || printenv "RWC_ACCESS_TOKEN_${owner}" || true)"
+      if [[ -n "${owner_token}" ]]; then
+        export RWX_ACCESS_TOKEN="${owner_token}"
+      fi
+    fi
+  fi
   if [[ -n "${RWX_ACCESS_TOKEN:-}" ]]; then
     if rwx whoami; then
       mkdir -p "${HOME}/.config/rwx"
