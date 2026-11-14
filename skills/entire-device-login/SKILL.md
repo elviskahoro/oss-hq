@@ -35,3 +35,18 @@ If a short-lived token is enough, skip all this: run `entire auth token` on the 
 | `org.freedesktop.secrets was not provided` | Forgot `ENTIRE_TOKEN_STORE=file`. Rerun with it. |
 | `Not logged in` after a successful login | `ENTIRE_TOKEN_STORE=file` missing from the status/other command. |
 | Process gone, no log output | It was killed with the tool call. Use `setsid nohup`, not a timeout. |
+
+## Querying trails and gates on a PR
+
+Once authenticated (`ENTIRE_TOKEN` or the file store above), these are read-only:
+
+```bash
+entire trail list --project gh/<owner>                 # trails in a project
+entire trail show --repo gh/<owner>/<repo> --branch <pr-branch> --json   # trail behind a PR branch
+entire trail approvals --repo gh/<owner>/<repo> --branch <pr-branch> --json   # approval decisions (the gate state)
+entire trail finding --help                            # agent findings on a trail
+entire trail watch --repo gh/<owner>/<repo> --branch <pr-branch>   # tail events
+```
+
+Run `entire agent-help` for machine-readable usage that always matches the installed version.
+`entire` itself is pinned and checksum-verified by `scripts/conductor-startup-script-cloud.sh` (the `entire` row in the startup summary).
