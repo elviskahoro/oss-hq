@@ -71,7 +71,7 @@ for entry in "${repos[@]}"; do
       echo "warning: could not fetch $repo/$f; result for this repo may be incomplete" >&2
       continue
     fi
-    if grep -qE '(key:[[:space:]]*[[:punct:]]?code[[:punct:]]?[[:space:]]*(#.*)?$|use:[[:space:]]*(\[[^]]*\bcode[[:space:]]*[],]|code[[:space:]]*$))|(^|[[:space:]])-[[:space:]]code[[:space:]]*$' <<<"$body"; then
+    if grep -qE '(key:[[:space:]]*[[:punct:]]?code[[:punct:]]?[[:space:]]*(#.*)?$|use:[[:space:]]*(\[[^]]*\bcode[[:space:]]*[],]|code[[:space:]]*(#.*)?$))|(^|[[:space:]])-[[:space:]]code[[:space:]]*(#.*)?$' <<<"$body"; then
       hits+=("$f")
     fi
   done <<<"$files"
