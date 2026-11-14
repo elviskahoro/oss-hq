@@ -22,3 +22,11 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 - `rwx image build|push`: build container images natively.
 - `rwx docs search "<q>"` / `rwx docs pull <path>`: current docs. Use Bash, not WebFetch. Don't write `.rwx` YAML from memory; `rwx docs pull /migrating/rwx-reference` first.
 - Migrating GitHub Actions: [`migrate-from-gha`](skills/migrate-from-gha/SKILL.md), then [`review-gha-migration`](skills/review-gha-migration/SKILL.md).
+
+### Fan-out across repos
+
+[`scripts/dispatch-rwx-clone-repo.sh`](scripts/dispatch-rwx-clone-repo.sh) finds owner repos whose `.rwx/*.yml` use a task keyed `code` and dispatches one Conductor workspace per repo to rename it to `clone-repo` (PR via `prompts/conductor/create-pr.md`).
+
+- Dry-run by default; `--run` creates workspaces. Pass explicit `repo` (or `repo=branch` for a `code` task only on an unmerged branch) to target one repo, e.g. `--run cmu-database-group-lectures`. Test on one repo before fanning out.
+- Workspace names are `<short-repo>-rename_rwx_code_task` (`sdk-python-attio` -> `attio`, `cmu-database-group-lectures` -> `cmu`); add shortenings by the "Short repo label" comment in the script.
+- Discovery scans default branches only and the pattern is loose; review matches before `--run`.
