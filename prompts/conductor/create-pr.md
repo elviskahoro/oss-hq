@@ -1,4 +1,4 @@
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/create-pr.md.
+<!-- Canonical source: oss-hq prompts/conductor/create-pr.md.
      Installed into a repo's .conductor settings [prompts].create_pr by
      scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
      Upstream history: gtm-sdk prompts/conductor/create-pr.md (incl. #921).

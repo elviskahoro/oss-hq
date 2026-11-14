@@ -1,4 +1,4 @@
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/resolve-merge-conflicts.md.
+<!-- Canonical source: oss-hq prompts/conductor/resolve-merge-conflicts.md.
      Installed into a repo's .conductor settings [prompts].resolve_merge_conflicts by
      scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
      Sibling of create-pr.md; shares its gates (roborev, no AI

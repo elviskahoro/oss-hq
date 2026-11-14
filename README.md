@@ -1,4 +1,4 @@
-# flox-conductor-sandbox
+# oss-hq
 
 Lightweight software for a developer who works alone and runs a lot of AI
 coding agents at once.
@@ -184,5 +184,5 @@ read too.
 | Review an RWX config migrated from GitHub Actions | [`review-gha-migration`](skills/review-gha-migration/SKILL.md) |
 
 The experiment results are in [`findings/`](findings/README.md), and
-[issue #16](https://github.com/elviskahoro/flox-conductor-sandbox/issues/16)
+[issue #16](https://github.com/elviskahoro/oss-hq/issues/16)
 has the Flox verdict.

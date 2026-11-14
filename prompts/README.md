@@ -72,7 +72,7 @@ tomlkit is the installer's only third-party import):
 
 ```bash
 uv run --no-project --with "tomlkit>=0.15.1" \
-    /path/to/flox-conductor-sandbox/scripts/install-conductor-prompts.py
+    /path/to/oss-hq/scripts/install-conductor-prompts.py
 ```
 
 For a repo with no committed `.conductor` settings, print a pasteable block

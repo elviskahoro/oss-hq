@@ -175,7 +175,7 @@ wheels = [
 ]
 
 [[package]]
-name = "flox-conductor-sandbox"
+name = "oss-hq"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [

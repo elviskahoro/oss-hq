@@ -1,4 +1,4 @@
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/fix-errors.md.
+<!-- Canonical source: oss-hq prompts/conductor/fix-errors.md.
      Installed into a repo's .conductor settings [prompts].fix_errors by
      scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
      Companion to create-pr.md; shares its conventions (roborev gate, no AI
