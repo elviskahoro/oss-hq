@@ -263,3 +263,11 @@ tasks:
 - Tasks are sandboxed with explicit dependencies, so an agent running locally or in the cloud needs no secrets and no up-to-date local dev environment.
 
 The article gives no config snippets. For `.rwx/` run definitions use `rwx docs pull` (above), and confirm flags with `rwx --help` and `rwx run --help`.
+
+## Failed-cron Slack notification
+
+`.rwx/check-closed-issues.yml` runs on a cron; failures are surfaced through an RWX **Run result** notification, not by polling.
+
+- Configure in the RWX UI: Organization settings → Notifications. Requires the RWX Slack app installed.
+- Settings: event **Run failed**, definition path `.rwx/check-closed-issues.yml`, trigger **Cron** only, destination a Slack channel (human step; cannot be done from the CLI).
+- Verify: with a watched issue closed, `rwx run .rwx/check-closed-issues.yml --wait` should fail and post to the channel.
