@@ -7,7 +7,7 @@ description: Use when running or interpreting scripts/sandbox-test.sh (the gtm-s
 
 `scripts/sandbox-test.sh` answers one question on a fresh Conductor cloud sandbox: do prebuilt Flox packages fix the flake source builds that break there (gtm-sdk#445)? It never hard-fails. Each run writes `findings/report-<UTC>.md` (the summary, so read it first) and `findings/full-log-<UTC>.txt`.
 
-**Read [issue #16](https://github.com/elviskahoro/flox-conductor-sandbox/issues/16) before drawing conclusions.** It holds the verdict, the evidence index (including which runs are contaminated), and the known traps. It supersedes #4, #5, and #11.
+**Read [issue #16](https://github.com/elviskahoro/oss-hq/issues/16) before drawing conclusions.** It holds the verdict, the evidence index (including which runs are contaminated), and the known traps. It supersedes #4, #5, and #11.
 
 ## Running
 

@@ -17,7 +17,7 @@ From inside a target repo:
 # The script path must be absolute: uv run resolves it against cwd, not --project.
 # --no-project --with tomlkit skips the full dependency sync.
 uv run --no-project --with "tomlkit>=0.15.1" \
-    /path/to/flox-conductor-sandbox/scripts/install-conductor-prompts.py --check
+    /path/to/oss-hq/scripts/install-conductor-prompts.py --check
 ```
 
 `prompts/README.md` covers the slot mapping (kebab-case filename to snake_case slot) and the `--local`/`--print` variants.

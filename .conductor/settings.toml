@@ -141,9 +141,9 @@ if [ "$STARTUP_RC" -ne 0 ]; then
 fi
 """
 
-[prompts] # Prompts below are generated from flox-conductor-sandbox prompts/conductor/*.md by scripts/install-conductor-prompts.py — edit the .md source and re-run, never this copy.
+[prompts] # Prompts below are generated from oss-hq prompts/conductor/*.md by scripts/install-conductor-prompts.py — edit the .md source and re-run, never this copy.
 create_pr = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/create-pr.md.
+<!-- Canonical source: oss-hq prompts/conductor/create-pr.md.
      Installed into a repo's .conductor settings [prompts].create_pr by
      scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
      Upstream history: gtm-sdk prompts/conductor/create-pr.md (incl. #921).
@@ -634,7 +634,7 @@ What's wrong: the Summary paraphrases the diff, the Test plan has no reasoning, 
 - A title that describes *what* the diff does (e.g., "Add X helper", "Refactor Y module") when a *why* framing was available.
 '''
 fix_errors = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/fix-errors.md.
+<!-- Canonical source: oss-hq prompts/conductor/fix-errors.md.
      Installed into a repo's .conductor settings [prompts].fix_errors by
      scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
      Companion to create-pr.md; shares its conventions (roborev gate, no AI
@@ -810,7 +810,7 @@ git push                                      # fast-forward only; never -f
 ```
 '''
 general = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/general.md.
+<!-- Canonical source: oss-hq prompts/conductor/general.md.
      Installed into a repo's .conductor settings [prompts].general by
      scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
      The installer validates TOML parsing; CI checks source/copy synchronization.
@@ -904,7 +904,7 @@ Baseline working agreements for every session in this workspace. Task-specific p
 
 ## Prompt helpers
 
-Prompts reference named helpers instead of inlining shell. Run one with `bash <(curl -fsSL "https://raw.githubusercontent.com/elviskahoro/flox-conductor-sandbox/${CONDUCTOR_PROMPTS_REF:-main}/scripts/conductor-prompts/<name>.sh") [args]`, or `scripts/conductor-prompts/<name>.sh` directly when this repo is checked out. Helpers: `pr-context`, `conflict-context`, `conflict-check`. If a helper can't be fetched, say so and stop on that step; don't reimplement it from memory.
+Prompts reference named helpers instead of inlining shell. Run one with `bash <(curl -fsSL "https://raw.githubusercontent.com/elviskahoro/oss-hq/${CONDUCTOR_PROMPTS_REF:-main}/scripts/conductor-prompts/<name>.sh") [args]`, or `scripts/conductor-prompts/<name>.sh` directly when this repo is checked out. Helpers: `pr-context`, `conflict-context`, `conflict-check`. If a helper can't be fetched, say so and stop on that step; don't reimplement it from memory.
 
 ## When to stop and ask
 
@@ -929,7 +929,7 @@ Otherwise, proceed.
 | Instructions conflict (this file vs. repo vs. user) | User's message wins, then the repo's AGENTS.md/CLAUDE.md, then this file. |
 '''
 resolve_merge_conflicts = '''
-<!-- Canonical source: flox-conductor-sandbox prompts/conductor/resolve-merge-conflicts.md.
+<!-- Canonical source: oss-hq prompts/conductor/resolve-merge-conflicts.md.
      Installed into a repo's .conductor settings [prompts].resolve_merge_conflicts by
      scripts/install-conductor-prompts.py — do not hand-edit the TOML copy.
      Sibling of create-pr.md; shares its gates (roborev, no AI

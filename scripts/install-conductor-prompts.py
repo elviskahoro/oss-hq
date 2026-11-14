@@ -2,7 +2,7 @@
 """Install standardized Conductor prompts into a repository's .conductor settings.
 
 The canonical prompt text lives in prompts/conductor/*.md in this repo
-(flox-conductor-sandbox). Conductor only reads custom prompts from a repo's
+(oss-hq). Conductor only reads custom prompts from a repo's
 `.conductor/settings.toml` or `.conductor/settings.local.toml` `[prompts]`
 table, and TOML has no include mechanism — so every consuming repo needs the
 text copied in. This script is the copier: it reads the .md sources, maps file
@@ -31,7 +31,7 @@ Usage (from this repo's root):
     # absolute: uv run resolves it against cwd, not --project; --no-project
     # --with tomlkit skips the full dependency sync)
     uv run --no-project --with "tomlkit>=0.15.1" \
-        /path/to/flox-conductor-sandbox/scripts/install-conductor-prompts.py
+        /path/to/oss-hq/scripts/install-conductor-prompts.py
 
     # emit a pasteable [prompts] block (for repos with no committed settings)
     uv run scripts/install-conductor-prompts.py --print
@@ -87,7 +87,7 @@ _SLOT_EXAMPLES = {
 }
 
 GENERATED_NOTE = (
-    "Prompts below are generated from flox-conductor-sandbox "
+    "Prompts below are generated from oss-hq "
     "prompts/conductor/*.md by scripts/install-conductor-prompts.py — "
     "edit the .md source and re-run, never this copy."
 )

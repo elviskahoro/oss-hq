@@ -22,7 +22,7 @@ tasks:
   - key: code
     call: git/clone 2.4.1
     with:
-      repository: https://github.com/elviskahoro/flox-conductor-sandbox.git
+      repository: https://github.com/elviskahoro/oss-hq.git
       ref: ${{ init.commit-sha }}
 
   - key: check
