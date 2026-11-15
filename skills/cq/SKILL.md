@@ -86,3 +86,15 @@ For experiments, point `CQ_LOCAL_DB_PATH` at a temp file so you don't pollute th
 - Local-only mode needs no config; remote features (drain, private-tier confirm/flag, auth) all require `CQ_ADDR`.
 - Remote mode (reported by a PR reviewer from earlier sandbox runs against the shared store; not re-verified here): a `propose` the remote rejects (missing/invalid `CQ_API_KEY`) still exits 0 with a stderr warning and keeps the unit locally; only `confirm`/`flag` hard-fail. Newly proposed units are pending/private, invisible to `query`, and 404 on `confirm`/`flag`, so a 404 right after a successful propose is expected.
 - Not verified: real remote server, `auth login`, `auth key`, `drain` without `--dry-run`, actually running `install` (only dry-run).
+
+## Sharing KUs across sandboxes
+
+The local store (`~/.local/share/cq/local.db`) is per-sandbox and lost with it, so it can't be the sharing mechanism. Sharing needs a remote that every sandbox points at via the same `CQ_ADDR` + `CQ_API_KEY`.
+
+- **`CQ_API_KEY` is data-plane only.** It covers `propose`, `confirm`, `flag`, `drain`. `cq auth status` / `cq auth key` use browser OIDC sign-in, so "Not signed in" with a key set is expected, not a misconfiguration.
+- **Public `cq.exchange`:** proposals are pending until human review, so they are invisible to `query` and 404 on `confirm`. Don't use it to share between our own agents.
+- **Recommended: self-host** `ghcr.io/mozilla-ai/cq/server` with a persistent volume at `/data`. Env: `CQ_JWT_SECRET`, `CQ_API_KEY_PEPPER` (required), `CQ_DB_PATH` (default `/data/cq.db`), `CQ_PORT` (default 3000). `CQ_DATABASE_URL` accepts only `sqlite:///` today. Create a user, sign in to the dashboard, create an API key with a TTL.
+- Reads (`query`, `status`) are unauthenticated: keep the server on a private network if lessons are sensitive.
+- **Key distribution:** inject `CQ_ADDR` and `CQ_API_KEY` into sandboxes as secrets (e.g. Infisical or Conductor env), never commit them. Run `scripts/cq-shared-check.sh` in a sandbox to validate the setup.
+- **Fallback:** record durable lessons in `AGENTS.md`. Manual, not queryable.
+- Not yet verified (needs a running server): that a unit proposed from sandbox A is returned by `query` in sandbox B, and whether pending units need approval on a self-hosted server.
