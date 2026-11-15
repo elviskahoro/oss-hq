@@ -63,18 +63,29 @@ for entry in "${repos[@]}"; do
   fi
 
   ref=${branch:+?ref=$branch}
-  files=$(gh api "repos/$repo/contents/.rwx$ref" -q '.[]|select(.name|test("\\.ya?ml$"))|.path' 2>/dev/null || true)
+  # Recursive tree listing so nested .rwx/sub/*.yml files are included.
+  if ! files=$(gh api "repos/$repo/git/trees/${branch:-HEAD}?recursive=1" -q '.tree[]|select(.type=="blob")|.path|select(test("^\\.rwx/.*\\.ya?ml$"))' 2>/dev/null); then
+    echo "skip $repo (could not list .rwx files)"
+    continue
+  fi
   hits=()
+  fetch_failed=0
   while IFS= read -r f; do
     [[ -n $f ]] || continue
     if ! body=$(gh api "repos/$repo/contents/$f$ref" -H "Accept: application/vnd.github.raw" 2>/dev/null); then
-      echo "warning: could not fetch $repo/$f; result for this repo may be incomplete" >&2
-      continue
+      echo "warning: could not fetch $repo/$f; skipping repo" >&2
+      fetch_failed=1
+      break
     fi
     if grep -qE '(key:[[:space:]]*[[:punct:]]?code[[:punct:]]?[[:space:]]*(#.*)?$|use:[[:space:]]*(\[[^]]*\bcode[[:space:]]*[],]|code[[:space:]]*(#.*)?$))|(^|[[:space:]])-[[:space:]]code[[:space:]]*(#.*)?$' <<<"$body"; then
       hits+=("$f")
     fi
   done <<<"$files"
+  if ((fetch_failed)); then
+    echo "skip $repo (file fetch failed; list would be incomplete)"
+    failed=1
+    continue
+  fi
   if [[ ${#hits[@]} -eq 0 ]]; then
     echo "skip $repo (no \`code\` task found${branch:+ on $branch}; may live on an unmerged branch or the pattern missed it)"
     continue
