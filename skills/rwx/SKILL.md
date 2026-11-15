@@ -36,7 +36,7 @@ TOKEN="$(printenv "RWX_ACCESS_TOKEN_$OWNER" || printenv "RWC_ACCESS_TOKEN_$OWNER
 rwx whoami
 ```
 
-Run this before the first `rwx` command in a session. If `rwx run` returns 403 when only `RWX_ACCESS_TOKEN_<OWNER>` vars are injected, the token is unset or belongs to the wrong org; re-run the snippet above.
+The cloud startup script does this automatically when `RWX_ACCESS_TOKEN` is unset (owner from `origin`, token persisted to `~/.config/rwx/accesstoken`), so `rwx whoami` should work in a fresh workspace; run the snippet manually only when switching orgs. A 403 means the token is unset or for the wrong org. If `rwx run` returns 403 when only `RWX_ACCESS_TOKEN_<OWNER>` vars are injected, the token is unset or belongs to the wrong org; re-run the snippet above.
 
 A run, task, or log ID only resolves under the organization that owns it. On not-found or unauthorized, switch tokens. Never print, log, or commit a token value.
 
