@@ -30,3 +30,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 - Dry-run by default; `--run` creates workspaces. Pass explicit `repo` (or `repo=branch` for a `code` task only on an unmerged branch) to target one repo, e.g. `--run cmu-database-group-lectures`. Test on one repo before fanning out.
 - Workspace names are `<short-repo>-rename_rwx_code_task` (`sdk-python-attio` -> `attio`, `cmu-database-group-lectures` -> `cmu`); add shortenings by the "Short repo label" comment in the script.
 - Discovery scans default branches only and the pattern is loose; review matches before `--run`.
+
+### Reporting to Linear
+
+[`.rwx/report-to-linear.yml`](.rwx/report-to-linear.yml) creates or comments on a Linear issue (deduped by `key`) so checks like `check-closed-issues` can report to Linear. Logic lives in `ci/` (`ci/main.py linear-report`, a plain Dagger program); needs vault secret `LINEAR_API_KEY`. Run: `rwx run .rwx/report-to-linear.yml --init key=<key> --init title=<t> --init body=<b>`. Dagger must run in RWX, not in Conductor sandboxes.
