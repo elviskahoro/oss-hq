@@ -177,6 +177,7 @@ read too.
 | Record or look up what agents learned | [`cq`](skills/cq/SKILL.md) |
 | Configure Pullfrog reviews | [`pullfrog-fireworks-setup`](skills/pullfrog-fireworks-setup/SKILL.md) |
 | Log in to Entire from a workspace | [`entire-device-login`](skills/entire-device-login/SKILL.md) |
+| Capture Claude sessions in Paper Compute | [`paper-compute-sandbox`](skills/paper-compute-sandbox/SKILL.md) |
 | Re-run the Flox experiments | [`flox-sandbox-harness`](skills/flox-sandbox-harness/SKILL.md) |
 | Publish or consume private Flox packages | [`floxhub-auth`](skills/floxhub-auth/SKILL.md) |
 | Authenticate the RWX CLI, or validate a change on RWX CI before opening a PR | [`rwx`](skills/rwx/SKILL.md) (summary in [`AGENTS.md`](AGENTS.md)) |
