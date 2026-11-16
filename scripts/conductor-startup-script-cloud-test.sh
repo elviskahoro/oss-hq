@@ -27,7 +27,7 @@
 #
 #   - RUN 1: a fresh run from a non-git login shell with no
 #     RWX_ACCESS_TOKEN — exactly the container's reality — asserting the
-#     pinned roborev/trunk/rwx downloads resolve under /usr/local/bin,
+#     pinned roborev/rwx downloads resolve under /usr/local/bin,
 #     python3.11 lands with /usr/bin/python3 staying 3.9 (dnf's
 #     interpreter), and the auth/init stages take their WARN rows rather
 #     than FAIL (proving the non-fatal paths, not pretending to test
@@ -95,7 +95,7 @@
 #   - RUN 9/10 (issue #44): the pytools failure contract — a present-but-
 #     broken uv (stub whose --version fails) must FAIL the run and exit
 #     non-zero under the DEFAULT posture AND under STARTUP_BEST_EFFORT=1:
-#     unlike roborev/trunk/rwx tool-stage failures, a requested tool that
+#     unlike roborev/rwx tool-stage failures, a requested tool that
 #     cannot be provisioned never leaves a workspace that appears ready.
 #   - RUN 11/12 (issue #44, roborev finding on c480ca7): the two middle
 #     branches of the idempotence matrix, which RUN 7/8 (fresh, exact-pin
@@ -251,9 +251,6 @@ su - sandbox-user -c "
     fail \"git-roborev resolved to \$(command -v git-roborev)\"
   git-roborev version >/dev/null 2>&1 ||
     fail \"git-roborev is not runnable\"
-
-  trunk --version >/dev/null 2>&1 ||
-    fail \"trunk --version failed: \$(trunk --version 2>&1)\"
 
   rwx_version_out=\"\$(rwx --version 2>&1)\" || true
   # Capture-then-grep for the same reason as the roborev check above: one
@@ -805,8 +802,8 @@ case "${RUN9_OUTPUT}" in
 esac
 
 echo "=== RUN 10: STARTUP_BEST_EFFORT=1 does NOT shield a pytools failure ==="
-# The issue #44 contract, and the deliberate asymmetry vs RUN 6: roborev/
-# trunk/rwx tool-stage failures are non-fatal under best-effort (the
+# The issue #44 contract, and the deliberate asymmetry vs RUN 6:
+# roborev/rwx tool-stage failures are non-fatal under best-effort (the
 # gtm-sdk#702 fallback-installer idiom), but a requested pytools failure
 # is fatal under BOTH postures — the FAIL rows still record, the run
 # still exits non-zero.
@@ -978,7 +975,7 @@ PI_STUB_URL="${PI_STUB_URL//'${PI_PIN}'/${PI_PIN_VALUE}}"
 # -o <path> form is called as a single arg `-fsSLo`, with the path as
 # the following argument). The parser handles both combined forms
 # (`-fsSLo <path>` etc., which curl accepts in one or two args) and
-# the split `-o <path>` form. Other paths (trunk, roborev, etc.) fall
+# the split `-o <path>` form. Other paths (roborev, etc.) fall
 # through to whatever the host's real curl reaches.
 # shellcheck disable=SC2016
 {
@@ -1346,7 +1343,7 @@ ENTIRE_STUB_URL="https://install.entire.com/v${ENTIRE_PIN_VALUE}/entire_${ENTIRE
 # the split `-o <path>` form. The entire tarball URL yields the prepped
 # tarball (so the integrity verify matches what we just rewrote, then
 # `tar -xzf` succeeds); other paths fall through to the host curl so
-# roborev/trunk/rwx/pi in the same script are unaffected.
+# roborev/rwx/pi in the same script are unaffected.
 # shellcheck disable=SC2016
 {
   printf '#!/bin/sh\n'
@@ -1406,7 +1403,7 @@ printf '%s' "${RUN22D_OUTPUT}"
 case "${RUN22D_OUTPUT}" in *"entire | PASS | reused /usr/local/bin/entire"*) ;; *) fail "entire-reuse run missing the reused entire PASS row" ;; esac
 
 echo "=== RUN 22B: entire integrity mismatch leaves entire uninstalled ==="
-# Same fail-closed posture as the roborev/trunk/rwx tool stages: under
+# Same fail-closed posture as the roborev/rwx tool stages: under
 # STARTUP_BEST_EFFORT=1 (this repo's settings.toml contract) a FAIL row is
 # recorded but the run exits 0; under the default posture the same FAIL row
 # exits non-zero. RUN 22B keeps RUN 22's patched /tmp/entire-startup.sh

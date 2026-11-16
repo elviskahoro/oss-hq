@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2312  # $(...) in assignments and rows: stage failures surface through the stages' own || returns and the summary, not by killing the script mid-row
-# The single Conductor workspace startup script: roborev + trunk + rwx +
+# The single Conductor workspace startup script: roborev + rwx +
 # Python 3.11 + the opt-in Python dev tools (uv/pytest/reflex/ruff/pyright/pyrefly), then the
 # auth/init that makes them work rather than merely exist.
 #
@@ -41,7 +41,7 @@
 #
 #      Repo-agnostic by design: no repo paths, no repo scripts, nothing that
 #      assumes a particular project — safe in any workspace, local or cloud.
-#      The trunk and python stages are reuse-if-present and SKIP cleanly off
+#      The python stages are reuse-if-present and SKIP cleanly off
 #      the target class, so pasting this into a repo that needs neither
 #      costs nothing. The uv/pytest/reflex/ruff/pyright/pyrefly stage (issue #44) is opt-in via
 #      STARTUP_PY_DEV_TOOLS=1 and SKIPs when unset, so the paste surface is
@@ -64,16 +64,9 @@
 #            hooks dir (often another tool's, e.g. git-lfs's), nothing is
 #            ever written there — a WARN tells the user to remove any
 #            roborev hook found in it by hand.
-#   trunk    the official launcher, content-pinned by sha256: trunk
-#            publishes no versioned launcher URL (trunk.io/releases/trunk
-#            is latest-only), but the artifact is a portable bash script
-#            that stayed byte-stable from 2024-11-06 until its 2026-10-06
-#            update to launcher 1.3.5 (S3 last-modified) — fail closed on
-#            any upstream change, bump deliberately. What the
-#            launcher then fetches is trunk's own managed update channel,
-#            out of this script's control. Same download as
-#            scripts/conductor-trunk-preflight.sh, which this repo's setup
-#            runs first, so this stage is normally verify-only reuse there.
+#   trunk    deliberately NOT installed. Policy: when trunk is needed, run it
+#            through the rwx CLI (inside an RWX task), never as a local
+#            launcher in the workspace.
 #   rwx      installed (pinned, checksum-verified) + token validated BEFORE
 #            it is persisted (a bad token never overwrites a good one), so
 #            every later shell is authenticated, not just setup.
@@ -142,7 +135,7 @@
 # silently. This repo's own settings.toml instead opts into the
 # best-effort posture its former cloud-install carried (gtm-sdk#702's
 # fallback-installer idiom) by exporting STARTUP_BEST_EFFORT=1: then the
-# tool stages (roborev/trunk/rwx install, rwx auth, roborev
+# tool stages (roborev/rwx install, rwx auth, roborev
 # config/daemon) record
 # their FAIL rows but do not fail the run (the pi stage never fails it under
 # either posture: a failed install is a WARN row and pi stays uninstalled), and only a Python 3.11 failure
@@ -269,7 +262,7 @@ note_placement() {
 
 # install_bin <src> <name>: place a file as an executable under
 # /usr/local/bin (the convention this repo's setup already uses for
-# roborev/infisical/trunk) when root or passwordless sudo allows it,
+# roborev/infisical) when root or passwordless sudo allows it,
 # else under ~/.local/bin. Echoes the installed path on success (nothing on
 # failure).
 install_bin() {
@@ -614,55 +607,6 @@ pi_install() {
   record PASS pi "v${PI_PIN} ($(command -v pi))"
 }
 
-# --- trunk ------------------------------------------------------------------
-# Same launcher download as scripts/conductor-trunk-preflight.sh (which
-# .conductor/settings.toml runs before this script in this repo, so this
-# stage is normally verify-only reuse there; the preflight pins the same
-# checksum — scripts/validate-pins.sh cross-checks the two constants). Kept
-# inline so the script stays a self-contained recipe for pasting (the
-# gtm-sdk#702 porting rationale).
-TRUNK_LAUNCHER_URL="https://trunk.io/releases/trunk"
-TRUNK_LAUNCHER_SHA256="700f8bbedfd226595999ea2202b9a7af75ba8398dd711f5f159f5bbba6cbf322"
-# Bump runbook: trunk publishes no versioned launcher URL, so re-download
-# ${TRUNK_LAUNCHER_URL} by hand, re-hash it, and update this constant (and
-# the preflight's copy) in the same commit. Last bumped 2026-10-09 for the
-# 2026-10-06 launcher 1.3.5 artifact (previous pin: the 2024-11-06 one).
-
-trunk_stage() {
-  if command -v trunk >/dev/null 2>&1; then
-    record PASS trunk "reused $(command -v trunk) ($(trunk --version 2>&1 | head -1 || true))"
-    return 0
-  fi
-  local launcher="${WORK}/trunk"
-  if ! curl -fsSL "${TRUNK_LAUNCHER_URL}" -o "${launcher}"; then
-    return 1
-  fi
-  if ! checksum_verify "${TRUNK_LAUNCHER_SHA256}" "${launcher}"; then
-    return 1
-  fi
-  chmod 755 "${launcher}"
-  local path
-  path="$(install_bin "${launcher}" trunk || true)"
-  if [[ -z "${path}" ]]; then
-    log "error: could not place the trunk launcher in a bin directory"
-    return 1
-  fi
-  note_placement "${path}"
-  hash -r 2>/dev/null || true
-  # The launcher bootstraps (downloads the real binary) on first invocation;
-  # that cold start was observed to fail transiently once in a container
-  # test, passing on the very next run — retry once before declaring
-  # failure instead of recording a spurious FAIL on a fresh sandbox.
-  if ! trunk --version >/dev/null 2>&1; then
-    sleep 5
-    if ! trunk --version >/dev/null 2>&1; then
-      log "error: installed trunk launcher failed its version check (twice)"
-      return 1
-    fi
-  fi
-  record PASS trunk "launcher at ${path} ($(trunk --version 2>&1 | head -1 || true))"
-}
-
 # --- rwx --------------------------------------------------------------------
 # Pinned static release binary (RWX is not in nixpkgs/Flox; their docs
 # recommend pinning for scripted use). Reuse-if-present.
@@ -953,7 +897,7 @@ python311_stage() {
 # Idempotence: uv is reuse-if-present (a functional `uv --version` check,
 # not just command -v — a present-but-broken binary FAILs instead of being
 # trusted; a functional uv of ANY version is reused as-is, the same
-# contract as roborev/trunk/rwx — a UV_PIN bump applies to fresh installs,
+# contract as roborev/rwx — a UV_PIN bump applies to fresh installs,
 # and validate-pins.sh guards the file-level drift); the venv is reused
 # when its bin/python is functional (a half-created venv from an
 # interrupted run is removed and recreated); `uv pip install` only runs
@@ -1129,7 +1073,7 @@ pytools_stage() {
   # Expose the console scripts as commands for later shells. note_placement
   # happens HERE, not inside expose_link: the link helpers run inside
   # command substitution and a subshell's LOCAL_FALLBACK_TOOLS update
-  # would die there (the same trap roborev/trunk/rwx sidestep by noting
+  # would die there (the same trap roborev/rwx sidestep by noting
   # the captured path at the call site).
   local pytest_link reflex_link ruff_link pyright_link pyrefly_link python_link
   pytest_link="$(expose_link "${PYTOOLS_VENV}/bin/pytest" pytest || true)"
@@ -1751,7 +1695,6 @@ maybe_fail() { # tool-stage failure: fatal unless best-effort mode is on
 log "host: $(uname -srm), user: $(id -un), pwd: $(pwd)"
 
 if roborev_install; then :; else record FAIL roborev "provisioning failed — see messages above"; maybe_fail; fi
-if trunk_stage; then :; else record FAIL trunk "provisioning failed — see messages above"; maybe_fail; fi
 if rwx_install; then :; else record FAIL rwx "provisioning failed — see messages above"; maybe_fail; fi
 # entire follows rwx in the tool-stage chain (issue #91): a Go release
 # binary with a per-platform sha256 pin, README/LICENSE/completions, and a
