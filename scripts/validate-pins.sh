@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pin-sync validation for the workspace startup provisioning pins.
 #
-# The roborev version + sha256 pins, the trunk launcher checksum, and the
+# The roborev version + sha256 pins and the
 # uv/pytest/reflex/ruff/pyright/pyrefly pins are deliberately duplicated across files (roborev
 # review finding: previously only comments kept them in sync). This is the
 # automated drift check — run in CI
@@ -14,8 +14,8 @@
 #   2. roborev (platform, sha256) pairs: the startup script's
 #      roborev_install() case block == envs/repackage's [build.roborev]
 #      assets, as sets
-#   3. trunk launcher: TRUNK_LAUNCHER_SHA256 identical in the startup
-#      script and scripts/conductor-trunk-preflight.sh
+#   3. (retired: the trunk launcher checksum check, removed when trunk left
+#      the workspace; numbers kept stable so cross-references still hold)
 #   4. paste-safety of the startup script: no triple-double-quote sequences
 #      and no backslash line-continuations anywhere in it — Conductor
 #      serializes the GUI setup field into a TOML multiline string, and
@@ -48,7 +48,7 @@
 # (conductor-cloud-install.sh vs conductor-startup-script.sh, before they
 # merged into the single startup script) died with that merge: one file is
 # now the only in-repo pin home. The remaining sync surfaces are the Flox
-# manifests (checks 1-2, 5) and the trunk preflight (check 3). (gtm-sdk's
+# manifests (checks 1-2, 5). (gtm-sdk's
 # former conductor-workspace-setup.sh sibling died with that repo's
 # retirement of the script, gtm-sdk#944 — nothing to sync there anymore.)
 #
@@ -59,7 +59,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 STARTUP="${REPO_ROOT}/scripts/conductor-startup-script-cloud.sh"
-PREFLIGHT="${REPO_ROOT}/scripts/conductor-trunk-preflight.sh"
 REPACKAGE_MANIFEST="${REPO_ROOT}/envs/repackage/.flox/env/manifest.toml"
 PROVISION_MANIFEST="${REPO_ROOT}/envs/floxhub-provision/.flox/env/manifest.toml"
 PREBUILT_MANIFEST="${REPO_ROOT}/envs/prebuilt/.flox/env/manifest.toml"
@@ -124,17 +123,6 @@ elif diff -q "${WORK}/pairs_install" "${WORK}/pairs_manifest" >/dev/null; then
   pass "roborev platform/sha256 pairs" "$(wc -l <"${WORK}/pairs_install" | tr -d ' ') pinned pairs match envs/repackage's [build.roborev]"
 else
   fail "roborev platform/sha256 pairs" "startup script's roborev_install() != envs/repackage's [build.roborev]; diff: $(diff "${WORK}/pairs_install" "${WORK}/pairs_manifest" | tr '\n' ' ')"
-fi
-
-# 3. trunk launcher checksum across the startup script and the preflight.
-# The preflight's constant is indented inside a branch, the startup
-# script's is top-level — tolerate leading whitespace in both.
-STARTUP_LAUNCHER_SHA="$(sed -n 's/^[[:space:]]*TRUNK_LAUNCHER_SHA256="\([0-9a-f]\{64\}\)".*/\1/p' "${STARTUP}")"
-PREFLIGHT_LAUNCHER_SHA="$(sed -n 's/^[[:space:]]*TRUNK_LAUNCHER_SHA256="\([0-9a-f]\{64\}\)".*/\1/p' "${PREFLIGHT}")"
-if [[ -n "${STARTUP_LAUNCHER_SHA}" && "${STARTUP_LAUNCHER_SHA}" == "${PREFLIGHT_LAUNCHER_SHA}" ]]; then
-  pass "trunk launcher sha256" "identical in conductor-startup-script-cloud.sh and conductor-trunk-preflight.sh (${STARTUP_LAUNCHER_SHA:0:12}...)"
-else
-  fail "trunk launcher sha256" "drift or missing: startup-script=${STARTUP_LAUNCHER_SHA:-<missing>}, preflight=${PREFLIGHT_LAUNCHER_SHA:-<missing>}"
 fi
 
 # 4. Paste-safety of the startup script. Its whole purpose includes being

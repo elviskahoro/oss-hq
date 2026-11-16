@@ -60,7 +60,6 @@ tasks:
     run: |
       shellcheck \
         scripts/conductor-startup-script-cloud.sh \
-        scripts/conductor-trunk-preflight.sh \
         scripts/conductor-infisical-preflight.sh \
         scripts/conductor-prompts/*.sh \
         scripts/validate-pins.sh \

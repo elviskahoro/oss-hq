@@ -33,7 +33,7 @@ check_fails() {
 }
 
 # --- Presence + version: every provisioned command resolves ---------------
-for tool in roborev trunk rwx entire uv uvx python python3 pytest reflex ruff pyright pyrefly; do
+for tool in roborev rwx entire uv uvx python python3 pytest reflex ruff pyright pyrefly; do
   if command -v "${tool}" >/dev/null 2>&1; then pass "on PATH: ${tool}"; else fail "on PATH: ${tool}"; fi
 done
 check "roborev --version" roborev version

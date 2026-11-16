@@ -1,11 +1,11 @@
 ---
 name: conductor-startup-script
-description: Use when provisioning a Conductor cloud workspace with scripts/conductor-startup-script-cloud.sh, pasting it into another repo's setup field, setting its env vars (RWX_ACCESS_TOKEN, ROBOREV_AGENT/ROBOREV_MODEL, FIREWORKS_API_KEY, STARTUP_PY_DEV_TOOLS, STARTUP_BEST_EFFORT), bumping a pin, or diagnosing a workspace that came up missing uv/trunk/roborev/rwx/entire/pytest/reflex.
+description: Use when provisioning a Conductor cloud workspace with scripts/conductor-startup-script-cloud.sh, pasting it into another repo's setup field, setting its env vars (RWX_ACCESS_TOKEN, ROBOREV_AGENT/ROBOREV_MODEL, FIREWORKS_API_KEY, STARTUP_PY_DEV_TOOLS, STARTUP_BEST_EFFORT), bumping a pin, or diagnosing a workspace that came up missing uv/roborev/rwx/entire/pytest/reflex.
 ---
 
 # The Conductor startup script
 
-`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs pinned, checksum-verified roborev, trunk, rwx, and entire, plus Python 3.11 on the AL2023 sandbox class (its system python3 is 3.9). It also makes the tools work, not just exist: it validates the rwx token, writes the roborev config, starts the roborev daemon, and smoke-checks the review agent.
+`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs pinned, checksum-verified roborev, rwx, and entire, plus Python 3.11 on the AL2023 sandbox class (its system python3 is 3.9). It also makes the tools work, not just exist: it validates the rwx token, writes the roborev config, starts the roborev daemon, and smoke-checks the review agent.
 
 For snapshot-build 403s or paste failures, use `conductor-cloud-startup-script-debugging`. To run the container test, use `run-startup-script-tests`.
 
@@ -20,8 +20,8 @@ Diagnosing a sick pasted workspace:
 
 | Symptom | Cause |
 | --- | --- |
-| Nothing resolves (`trunk`, `roborev`, …) | The paste is missing or stale. Re-paste the current script. |
-| `trunk`/`roborev` resolve but `uv` doesn't | `STARTUP_PY_DEV_TOOLS=1` isn't set in that repo's Conductor env vars. |
+| Nothing resolves (`roborev`, `rwx`, …) | The paste is missing or stale. Re-paste the current script. |
+| `roborev`/`rwx` resolve but `uv` doesn't | `STARTUP_PY_DEV_TOOLS=1` isn't set in that repo's Conductor env vars. |
 | Reviews never run | `FIREWORKS_API_KEY` is missing (the smoke check WARNs). |
 
 Paste-safety: the file must contain no triple double quotes and no backslash line continuations, because Conductor's TOML serialization breaks on them. `scripts/validate-pins.sh` enforces this in CI.
