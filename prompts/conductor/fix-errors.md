@@ -46,6 +46,7 @@ Classify each error before touching code:
 | --- | --- | --- |
 | **Caused by this branch** | Fails on the branch, passes on `main` | Fix it. |
 | **Pre-existing on base** | Also fails on `main` / unrelated files, or a reviewer (e.g. Pullfrog) flags it as pre-existing | Don't fix unless the user asks. File a GitHub issue (see below), then report it. |
+| **`pullfrog-approval` failing** | Check red, or still pending after your push | Never flaky or needs-decision. Skip the log hunt and the check rerun; follow "Pullfrog approval" below. |
 | **Flaky / infra** | Timeout, network error, runner crash, passes on rerun | Rerun once (`gh run rerun <run-id> --failed`); if it passes, report it as flaky. Don't "fix" code for a flake. |
 | **Needs a decision** | Fix requires changing a public interface, a product behavior, or a test's intended expectation | Stop and ask. |
 | **Needs access you lack** | Missing secret, permission, or external service | Say exactly what's missing; don't work around it. |
@@ -127,11 +128,21 @@ git push
 
 - If the push is rejected as non-fast-forward, `git fetch` and rebase/merge per the repo's convention, re-verify (Step 7), then push (`--force-with-lease` is pre-approved if history was rewritten: push without asking) — surface any conflicts to the user rather than resolving them silently.
 - If the branch has no upstream and no PR, don't create one; report the fix is committed locally and let the user decide on create-pr.
-- After pushing, check status once with `gh pr checks`. Don't poll in a loop: if checks are still running, say so and stop; the user can press the button again.
+- After pushing, check status once with `gh pr checks`. Don't poll in a loop: if checks are still running, say so and stop; the user can press the button again. Exception: `pullfrog-approval` is not done until you have re-triggered pullfrog (below).
+
+### Pullfrog approval: fix, push, resolve, rerun
+
+A failing `pullfrog-approval` check means pullfrog's inline comments are unaddressed. Do all of this without being told, in order:
+
+1. Fix the code for every pullfrog inline comment. Exception: a comment that flags a pre-existing issue follows the triage table (file or link an issue, reply on the thread); report the check as blocked by it rather than looping.
+2. Push. Unpushed fixes don't count, and pushing to an open PR needs no approval.
+3. Resolve every addressed thread (below).
+4. Re-trigger pullfrog: if the check doesn't rerun or update on its own, `gh pr comment <pr-number> --body "@pullfrog"`.
+5. Check `gh pr checks` once and list threads again. If pullfrog left new comments, repeat from 1. Never report fixed while `pullfrog-approval` is failing or pending.
 
 ### Resolve review comments you have addressed
 
-Review threads (especially from `pullfrog`, also roborev and humans) must not be left open once the issue they raise is fixed. A failing `pullfrog-approval` check means pullfrog's inline comments are unaddressed: fix every one, push (unpushed fixes don't count, and no need to ask first), AND resolve every one. After the fix is pushed:
+Review threads (especially from `pullfrog`, also roborev and humans) must not be left open once the issue they raise is fixed. After the fix is pushed:
 
 - List unresolved threads: `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{author{login} body path}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number>`
 - For each thread whose concern is actually resolved by a pushed commit, reply briefly with the commit SHA, then resolve it: `gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<thread-id>`
@@ -146,6 +157,7 @@ Finish with a short summary the user can act on:
 - **Roborev:** clean / findings fixed / unresolved (listed) / unavailable.
 - **Not fixed:** pre-existing, flaky, needs-decision, or needs-access items, each with the reason and a suggested next step. Pre-existing bugs include the GitHub issue URL you filed or linked.
 - Review threads resolved / left open (with reason).
+- Pullfrog re-requested (yes/no) and the `pullfrog-approval` state.
 - Commit SHA(s) and whether they were pushed.
 
 Be factual. If a check is still red or unverified, say so; do not round up to "should be fixed".
