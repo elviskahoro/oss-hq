@@ -1,7 +1,19 @@
 {
   "items": [
-    { "repo": "strawberry-graphql/strawberry", "number": 4736 },
-    { "repo": "strawberry-graphql/strawberry", "number": 4758 },
-    { "repo": "elviskahoro/sdk-python-linear", "number": 200 }
+    { "repo": "strawberry-graphql/strawberry", "number": 4736, "why": "RecursionError on self-referential inputs; the bug OPAQUE_INPUTS works around (sdk-python-linear#200)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4758, "why": "Fixes #4736; merge + release unblocks sdk-python-linear#200" },
+    { "repo": "elviskahoro/sdk-python-linear", "number": 200 },
+    { "repo": "strawberry-graphql/strawberry", "number": 4735, "why": "Field arguments dropped; BUG-6/7 workaround in scripts/codegen.py (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4734, "why": "Enum default emitted before the enum; BUG-5 workaround in scripts/codegen.py (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4090, "why": "Directive definitions, option 1 (ignore); competes with #4093; BUG-1 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4093, "why": "Directive definitions, option 2 (generate); competes with #4090; BUG-1 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4543, "why": "Keyword enum values emit invalid Python; BUG-3 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4380, "why": "Fix PR for #4378: JSON scalar / deprecated scalar form; BUG-4/8 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4378, "why": "Deprecated ScalarWrapper output for custom scalars; BUG-4/8 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4742, "why": "Shared fragments duplicated per operation; U2 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4740, "why": "Invalid operations fail with a bare AssertionError; U6 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4739, "why": "Enum placement differs by Python version; U9 (sdk-python-linear#147)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4743, "why": "Not blocking: schema descriptions as docstrings (sdk-python-linear#150)" },
+    { "repo": "strawberry-graphql/strawberry", "number": 4741, "why": "Not blocking: custom scalar -> Python type mapping; already fixed in 0.337.1, close-only watch" }
   ]
 }

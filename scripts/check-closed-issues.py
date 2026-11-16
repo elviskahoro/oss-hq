@@ -49,7 +49,8 @@ def main(argv):
             continue
         kind = "PR" if "pull_request" in d else "issue"
         if newly_closed(d, since):
-            hits.append(f"CLOSED {kind} {it['repo']}#{it['number']}: {d['title']} {d['html_url']}")
+            why = f"\n  why watched: {it['why']}" if it.get("why") else ""
+            hits.append(f"CLOSED {kind} {it['repo']}#{it['number']}: {d['title']} {d['html_url']}{why}")
         else:
             print(f"still {d['state']}: {it['repo']}#{it['number']}")
     for e in errors:
