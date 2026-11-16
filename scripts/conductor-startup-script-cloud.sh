@@ -64,8 +64,9 @@
 #            hooks dir (often another tool's, e.g. git-lfs's), nothing is
 #            ever written there — a WARN tells the user to remove any
 #            roborev hook found in it by hand.
-#   trunk    deliberately NOT installed. Trunk runs only through the rwx CLI
-#            (RWX tasks), never as a local launcher in the workspace.
+#   trunk    deliberately NOT installed. Policy: when trunk is needed, run it
+#            through the rwx CLI (inside an RWX task), never as a local
+#            launcher in the workspace.
 #   rwx      installed (pinned, checksum-verified) + token validated BEFORE
 #            it is persisted (a bad token never overwrites a good one), so
 #            every later shell is authenticated, not just setup.

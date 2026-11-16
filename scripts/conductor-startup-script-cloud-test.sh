@@ -802,7 +802,7 @@ case "${RUN9_OUTPUT}" in
 esac
 
 echo "=== RUN 10: STARTUP_BEST_EFFORT=1 does NOT shield a pytools failure ==="
-# The issue #44 contract, and the deliberate asymmetry vs RUN 6: roborev/
+# The issue #44 contract, and the deliberate asymmetry vs RUN 6:
 # roborev/rwx tool-stage failures are non-fatal under best-effort (the
 # gtm-sdk#702 fallback-installer idiom), but a requested pytools failure
 # is fatal under BOTH postures — the FAIL rows still record, the run
