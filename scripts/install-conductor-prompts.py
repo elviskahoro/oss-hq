@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["tomlkit>=0.15.1"]
+# ///
 """Install standardized Conductor prompts into a repository's .conductor settings.
 
 The canonical prompt text lives in prompts/conductor/*.md in this repo
@@ -56,7 +60,21 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-import tomlkit
+try:
+    import tomlkit
+except ImportError:
+    # Plain `python3 scripts/install-conductor-prompts.py` in a sandbox
+    # without tomlkit: re-exec under uv, which reads the PEP 723 header.
+    import os
+    import shutil
+
+    if os.environ.get("_INSTALL_PROMPTS_REEXEC") or not shutil.which("uv"):
+        raise SystemExit(
+            "error: tomlkit is not installed; run via "
+            "`uv run scripts/install-conductor-prompts.py`"
+        )
+    os.environ["_INSTALL_PROMPTS_REEXEC"] = "1"
+    os.execvp("uv", ["uv", "run", "--script", __file__, *sys.argv[1:]])
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
