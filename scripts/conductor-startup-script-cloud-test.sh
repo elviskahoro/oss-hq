@@ -152,6 +152,15 @@
 # Exits non-zero on the first broken assertion.
 set -euo pipefail
 
+# This suite provisions its own sandbox-user with dnf, so it must run as root
+# inside the throwaway container (see Usage above). In a real non-root
+# sandbox the first dnf call fails with "This command has to be run with
+# superuser privileges"; fail early with the right pointer instead.
+if [[ "$(id -u)" != 0 ]]; then
+  echo "TEST FAIL: this suite must run as root inside a throwaway amazonlinux:2023 container (see Usage). To provision a workspace, run scripts/conductor-startup-script-cloud.sh instead." >&2
+  exit 1
+fi
+
 # qemu-user runs a binary as `qemu-<arch> <binary> ...`, so the emulator is
 # this shell's argv[0] (issue #92: see the usage note above). It must be read
 # by a child process: qemu fakes a process's view of its own cmdline (bash's
