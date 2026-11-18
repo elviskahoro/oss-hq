@@ -229,6 +229,7 @@ su - sandbox-user -c "
   pin_roborev=\"\$(sed -n 's/^ROBOREV_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
   pin_rwx=\"\$(sed -n 's/^RWX_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
   pin_entire=\"\$(sed -n 's/^ENTIRE_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
+  pin_infisical=\"\$(sed -n 's/^INFISICAL_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
 
   [ \"\$(command -v python3)\" = /usr/local/bin/python3 ] ||
     fail \"python3 resolved to \$(command -v python3), expected /usr/local/bin/python3\"
@@ -258,6 +259,13 @@ su - sandbox-user -c "
   # message always agree.
   printf '%s' \"\${rwx_version_out}\" | grep -q \"\${pin_rwx}\" ||
     fail \"rwx does not report the pinned \${pin_rwx}: \${rwx_version_out}\"
+
+  # Issue #183: the pinned infisical CLI lands in /usr/local/bin too.
+  [ \"\$(command -v infisical)\" = /usr/local/bin/infisical ] ||
+    fail \"infisical resolved to \$(command -v infisical)\"
+  infisical_version_out=\"\$(infisical --version 2>&1)\" || true
+  printf '%s' \"\${infisical_version_out}\" | grep -q \"\${pin_infisical}\" ||
+    fail \"infisical does not report the pinned \${pin_infisical}: \${infisical_version_out}\"
 
   # Issue #91: the entire CLI lands via the same /usr/local/bin path as
   # roborev/rwx; both binaries (entire + git-remote-entire) must resolve
