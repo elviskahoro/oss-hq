@@ -317,6 +317,9 @@ Closes #NNN
 ## Test plan
 <Reasoning, not output. "Exercised X path with Y inputs because Z is the highest-risk surface." If full unit coverage exists and the change is small/obvious, skip this section.>
 
+## Roborev
+<Required, never drop. One of: "clean after N fix rounds", "skipped (roborev not available in cloud sandbox)", "unavailable (reason)" or "findings remain (N)". The last two are not a clean review and need explicit user acceptance before publishing. List any findings the user accepted.>
+
 ## Links
 - Linear: [TEAM-NNN](https://linear.app/...)
 - Spec: design/backlog-...-spec-01.md
@@ -332,6 +335,7 @@ Section guidance:
 | Trade-offs | When meaningful alternatives existed | Obvious one-way changes, fixes to clear bugs |
 | Risks | When the change has non-trivial blast radius | Docs, comments, isolated refactors with coverage |
 | Test plan | When testing required judgment calls | Small changes with full unit coverage |
+| Roborev | Always | Never. Report the Step 5 outcome. |
 | Links | If any upstream artifact exists | True greenfield work with no ticket, spec, or predecessor PR |
 
 ### Step 8: Show a preview when requested
@@ -400,7 +404,7 @@ Write the final body to a file (real newlines, not `\n`), then check each fully-
 
 If the grep finds a missing closing keyword, **stop and fix the body** — don't proceed with a body that silently downgraded to a bare reference. If Step 2 flagged partial/cross-repo instead, do not list that issue number and don't add the keyword.
 
-Return the PR URL, followed by the Roborev outcome and a note about preserved follow-up history when the branch was published. If the user explicitly accepted findings or the review was skipped because Roborev was unavailable, disclose that status in the PR body's Risks section and in the final handoff; do not hide it in a comment unless the user requested a comment.
+Return the PR URL, followed by the Roborev outcome and a note about preserved follow-up history when the branch was published. If the user explicitly accepted findings or the review was skipped because Roborev was unavailable, disclose that status in the PR body's Roborev section and in the final handoff; do not hide it in a comment unless the user requested a comment.
 
 ### Step 12b: Link the GitHub issue, if Step 9 deferred it
 
