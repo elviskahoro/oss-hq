@@ -422,6 +422,65 @@ roborev_install() {
   record PASS roborev "v${ROBOREV_PIN} (${path})"
 }
 
+# --- infisical ----------------------------------------------------------------
+# Pinned release binary, fail-closed sha256 (issue #183: fresh cloud
+# sandboxes had no `infisical`, so agents fell back to hand-written REST
+# calls). Reuse-if-present keeps re-runs cheap and never shadows a host
+# install. `infisical init` is deliberately never run. Bump runbook: new pin
+# + sha256s from the release's checksums.txt (linux) and checksums-darwin.txt.
+INFISICAL_PIN="0.45.10"
+
+infisical_install() {
+  if command -v infisical >/dev/null 2>&1; then
+    record PASS infisical "reused $(command -v infisical) ($(infisical --version 2>&1 | head -1 || true))"
+    return 0
+  fi
+  local asset sha256
+  case "$(uname -s)-$(uname -m)" in
+  Linux-x86_64)
+    asset="cli_${INFISICAL_PIN}_linux_amd64.tar.gz"
+    sha256="93feaec51a5a6ff217f6b11aff3c865cb268c46911cc028d751250a032a9ba02"
+    ;;
+  Linux-aarch64)
+    asset="cli_${INFISICAL_PIN}_linux_arm64.tar.gz"
+    sha256="c5490f49ecf533c24613b521d714facee0ca345b597f005714af1f1a6997274d"
+    ;;
+  Darwin-arm64)
+    asset="cli_${INFISICAL_PIN}_darwin_arm64.tar.gz"
+    sha256="4992c8f717de61b980d3129e8db9d69fd884000c8858834a49d612efee157e2b"
+    ;;
+  *)
+    log "error: no pinned infisical asset for $(uname -s)-$(uname -m)"
+    return 1
+    ;;
+  esac
+  local dir="${WORK}/infisical"
+  mkdir -p "${dir}"
+  if ! curl -fsSLo "${dir}/${asset}" "https://github.com/Infisical/cli/releases/download/v${INFISICAL_PIN}/${asset}"; then
+    return 1
+  fi
+  if ! checksum_verify "${sha256}" "${dir}/${asset}"; then
+    return 1
+  fi
+  if ! tar -xzf "${dir}/${asset}" -C "${dir}" infisical || [[ ! -x "${dir}/infisical" ]]; then
+    log "error: infisical tarball did not yield an executable ./infisical"
+    return 1
+  fi
+  local path
+  path="$(install_bin "${dir}/infisical" infisical || true)"
+  if [[ -z "${path}" ]]; then
+    log "error: could not place the infisical binary in a bin directory"
+    return 1
+  fi
+  note_placement "${path}"
+  hash -r 2>/dev/null || true
+  if ! command -v infisical >/dev/null 2>&1; then
+    log "error: infisical installed at ${path} but not on PATH"
+    return 1
+  fi
+  record PASS infisical "v${INFISICAL_PIN} (${path})"
+}
+
 # --- pi ----------------------------------------------------------------------
 # Pinned tarball + SRI sha512 (the same npm registry `dist.integrity` field).
 # Pi 0.73.1 lived under `@mariozechner/pi-coding-agent`; the package was
@@ -1696,6 +1755,7 @@ log "host: $(uname -srm), user: $(id -un), pwd: $(pwd)"
 
 if roborev_install; then :; else record FAIL roborev "provisioning failed — see messages above"; maybe_fail; fi
 if rwx_install; then :; else record FAIL rwx "provisioning failed — see messages above"; maybe_fail; fi
+if infisical_install; then :; else record FAIL infisical "provisioning failed — see messages above"; maybe_fail; fi
 # entire follows rwx in the tool-stage chain (issue #91): a Go release
 # binary with a per-platform sha256 pin, README/LICENSE/completions, and a
 # companion `git-remote-entire` helper that Git invokes for `entire://`

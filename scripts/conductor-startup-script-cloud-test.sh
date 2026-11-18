@@ -152,6 +152,15 @@
 # Exits non-zero on the first broken assertion.
 set -euo pipefail
 
+# This suite provisions its own sandbox-user with dnf, so it must run as root
+# inside the throwaway container (see Usage above). In a real non-root
+# sandbox the first dnf call fails with "This command has to be run with
+# superuser privileges"; fail early with the right pointer instead.
+if [[ "$(id -u)" != 0 ]]; then
+  echo "TEST FAIL: this suite must run as root inside a throwaway amazonlinux:2023 container (see Usage). To provision a workspace, run scripts/conductor-startup-script-cloud.sh instead." >&2
+  exit 1
+fi
+
 # qemu-user runs a binary as `qemu-<arch> <binary> ...`, so the emulator is
 # this shell's argv[0] (issue #92: see the usage note above). It must be read
 # by a child process: qemu fakes a process's view of its own cmdline (bash's
@@ -229,6 +238,7 @@ su - sandbox-user -c "
   pin_roborev=\"\$(sed -n 's/^ROBOREV_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
   pin_rwx=\"\$(sed -n 's/^RWX_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
   pin_entire=\"\$(sed -n 's/^ENTIRE_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
+  pin_infisical=\"\$(sed -n 's/^INFISICAL_PIN=\"\([^\"]*\)\".*/\1/p' ${STARTUP_SCRIPT})\"
 
   [ \"\$(command -v python3)\" = /usr/local/bin/python3 ] ||
     fail \"python3 resolved to \$(command -v python3), expected /usr/local/bin/python3\"
@@ -258,6 +268,13 @@ su - sandbox-user -c "
   # message always agree.
   printf '%s' \"\${rwx_version_out}\" | grep -q \"\${pin_rwx}\" ||
     fail \"rwx does not report the pinned \${pin_rwx}: \${rwx_version_out}\"
+
+  # Issue #183: the pinned infisical CLI lands in /usr/local/bin too.
+  [ \"\$(command -v infisical)\" = /usr/local/bin/infisical ] ||
+    fail \"infisical resolved to \$(command -v infisical)\"
+  infisical_version_out=\"\$(infisical --version 2>&1)\" || true
+  printf '%s' \"\${infisical_version_out}\" | grep -q \"\${pin_infisical}\" ||
+    fail \"infisical does not report the pinned \${pin_infisical}: \${infisical_version_out}\"
 
   # Issue #91: the entire CLI lands via the same /usr/local/bin path as
   # roborev/rwx; both binaries (entire + git-remote-entire) must resolve
