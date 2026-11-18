@@ -577,10 +577,9 @@ Changes the *shape* of exceptions that bubble up: `AttioRateLimit` is now wrappe
 - [x] Ran tests
 - [x] Tested locally
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
-What's wrong: the Summary paraphrases the diff, the Test plan has no reasoning, the AI footer is forbidden, and there's no motivation a reviewer can use to evaluate the change.
+What's wrong: the Summary paraphrases the diff, the Test plan has no reasoning, the PR also carries an AI footer (forbidden, so not shown here), and there's no motivation a reviewer can use to evaluate the change.
 
 **Good:** see Example 2.
 
