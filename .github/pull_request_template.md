@@ -7,3 +7,5 @@ Closes #<issue>
 
 ## Test plan
 <!-- Reasoning, not output. -->
+
+<!-- No AI attribution: do not add "Co-Authored-By: Claude", "🤖 Generated with Claude Code", or similar footers to the PR body or commits. Remove any that tools insert. -->
