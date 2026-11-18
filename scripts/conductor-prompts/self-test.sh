@@ -60,6 +60,7 @@ printf '## Why\nFixes #7\n' > "$tmp/body"
 check "submit: missing closing keyword" 1 bash "$here/pr-submit.sh" main acme:feature none T "$tmp/body" 8
 check "submit: creates PR" 0 bash "$here/pr-submit.sh" main acme:feature none T "$tmp/body" 7
 check "submit: edits PR" 0 bash "$here/pr-submit.sh" main acme:feature 12 T "$tmp/body"
+has "submit: warns when no issue passed" "warning: no issue numbers passed"
 check "submit: bad PR number" 1 bash "$here/pr-submit.sh" main acme:feature x T "$tmp/body"
 check "submit: bad push_head" 1 bash "$here/pr-submit.sh" main feature none T "$tmp/body"
 if grep -q "gh pr create --base main --head acme:feature" "$GH_LOG" && grep -q "gh pr edit 12" "$GH_LOG"; then ok "submit: gh invoked"; else bad "submit: gh log"; fi

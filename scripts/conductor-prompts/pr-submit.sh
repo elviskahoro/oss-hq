@@ -7,6 +7,7 @@ set -u
 base="$1"; push_head="$2"; existing_pr_number="$3"; title="$4"; body_file="$5"; shift 5
 [ -r "$body_file" ] || { echo "body file $body_file is not readable" >&2; exit 1; }
 PR_BODY="$(cat "$body_file")"
+[ "$#" -gt 0 ] || echo "warning: no issue numbers passed; confirm Step 2 found no issue this PR fully resolves" >&2
 for ISSUE_NUMBER in "$@"; do
   grep -qiE "(closes|fixes|resolves) #${ISSUE_NUMBER}([^[:alnum:]_]|$)" <<< "$PR_BODY" || {
     echo "missing closing keyword for #${ISSUE_NUMBER}" >&2
