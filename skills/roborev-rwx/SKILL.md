@@ -5,7 +5,7 @@ description: Run roborev code review as an RWX CI pipeline, or copy that pipelin
 
 # roborev on RWX
 
-[`.rwx/roborev.yml`](../../.rwx/roborev.yml) installs pinned, checksum-verified roborev and pi (the same pins as `scripts/conductor-startup-script-cloud.sh`), then runs `roborev review --branch --wait --min-severity medium` against the PR's base branch. The run fails on medium-or-higher findings only. Fork PRs are unsupported: the clone only sees same-repo branches.
+[`.rwx/roborev.yml`](../../.rwx/roborev.yml) installs pinned, checksum-verified roborev and pi (the same pins as `scripts/conductor-startup-script-cloud.sh`), then runs `roborev review --branch --wait` against the PR's base branch and fails the run if its output lists medium-or-higher findings. Fork PRs are unsupported: the clone only sees same-repo branches.
 
 ## Copy it to another repo
 
