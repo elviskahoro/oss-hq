@@ -68,13 +68,14 @@ tasks:
     use: [code, install-roborev, install-pi]
     env:
       FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+      BASE_BRANCH: ${{ init.base-branch }}
     run: |
       git config --global user.name roborev-ci
       git config --global user.email roborev-ci@localhost
-      git fetch origin "${{ init.base-branch }}"
+      git fetch origin "$BASE_BRANCH"
       # check-agents exits 0 even when the agent is missing ("0 passed"), so
       # require at least one passed and none failed.
       out="$(roborev check-agents --timeout 30 2>&1)" || { echo "$out"; exit 1; }
       echo "$out"
       echo "$out" | grep -Eq '[1-9][0-9]* passed, 0 failed' || { echo "no review agent passed its smoke check" >&2; exit 1; }
-      roborev review --branch --base "origin/${{ init.base-branch }}" --wait --min-severity medium
+      roborev review --branch --base "origin/$BASE_BRANCH" --wait --min-severity medium
