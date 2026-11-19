@@ -15,7 +15,7 @@ on:
     pull_request:
       init:
         commit-sha: ${{ event.git.sha }}
-        base-branch: ${{ event.github.pull_request.base.ref }}
+        base-branch: ${{ event.github.pull_request.pull_request.base.ref }}
 
 base:
   image: ubuntu:24.04
