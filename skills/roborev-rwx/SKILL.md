@@ -10,7 +10,7 @@ description: Run roborev code review as an RWX CI pipeline, or copy that pipelin
 ## Copy it to another repo
 
 1. Copy `.rwx/roborev.yml` into the repo's `.rwx/`.
-2. Change the `git/clone` `repository:` line and the CLI `base-branch` default if it is not `main` (both marked `CHANGE ME`).
+2. Change the `git/clone` `repository:` line and the CLI `base-branch` default if it is not `main` (both marked `CHANGE ME`). For a private repo, also add a `github-token` to that `git/clone` (see `rwx docs pull /docs/github-triggers`).
 3. Commit a `.roborev.toml` with `agent` and `model` (copy this repo's; the `fireworks/` model prefix is required for pi).
 4. Add RWX secret `FIREWORKS_API_KEY` in the repo's org (never inline it).
 5. `rwx lint .rwx/roborev.yml`, then `rwx run .rwx/roborev.yml --wait --fail-fast`.
