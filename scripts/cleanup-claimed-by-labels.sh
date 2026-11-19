@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Remove retired `claimed-by::*` labels from repos that adopted the oss-hq
 # issue-claim convention (see AGENT-LABELS.md). Open issues carrying one are
-# stripped first, then the label is deleted. Idempotent.
+# stripped first (and marked stale-claim if still status::in_progress, so the
+# documented takeover applies), then the label is deleted. Idempotent.
 # Dry-run by default (prints what it would do); pass --run to apply.
 # Usage: cleanup-claimed-by-labels.sh [--run] [--owner OWNER] [REPO ...]
 #   Explicit REPO args (owner/name or name) skip discovery.
@@ -82,6 +83,13 @@ for repo in "${repos[@]}"; do
         [[ -n $num ]] || continue
         echo "  strip '$label' from open issue #$num"
         act gh issue edit "$num" --repo "$repo" --remove-label "$label"
+        # The old holder is no longer identifiable; mark the claim reclaimable so
+        # the issue isn't stranded with status::in_progress and no holder.
+        if gh issue view "$num" --repo "$repo" --json labels -q '.labels[].name' | grep -qx 'status::in_progress'; then
+          echo "  mark #$num stale-claim (status::in_progress with no holder)"
+          act gh label create stale-claim --repo "$repo" --color e99695 --description "Claim has no recent heartbeat; reclaimable." --force
+          act gh issue edit "$num" --repo "$repo" --add-label stale-claim
+        fi
       done <<<"$nums"
       echo "  delete label '$label'"
       act gh label delete "$label" --repo "$repo" --yes
