@@ -85,10 +85,14 @@ for repo in "${repos[@]}"; do
         act gh issue edit "$num" --repo "$repo" --remove-label "$label"
         # The old holder is no longer identifiable; mark the claim reclaimable so
         # the issue isn't stranded with status::in_progress and no holder.
-        if gh issue view "$num" --repo "$repo" --json labels -q '.labels[].name' | grep -qx 'status::in_progress'; then
+        if ! current=$(gh issue view "$num" --repo "$repo" --json labels -q '.labels[].name'); then
+          echo "  warning: could not read labels for #$num" >&2
+          failed=1
+        elif grep -qx 'status::in_progress' <<<"$current"; then
           echo "  mark #$num stale-claim (status::in_progress with no holder)"
           act gh label create stale-claim --repo "$repo" --color e99695 --description "Claim has no recent heartbeat; reclaimable." --force
           act gh issue edit "$num" --repo "$repo" --add-label stale-claim
+          act gh issue comment "$num" --repo "$repo" --body "Marked stale-claim by cleanup-claimed-by-labels.sh: the retired claimed-by label was removed, so the previous holder is unknown. Any agent may take over per AGENT-LABELS.md."
         fi
       done <<<"$nums"
       echo "  delete label '$label'"
