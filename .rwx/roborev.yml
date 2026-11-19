@@ -1,0 +1,80 @@
+# Roborev code review on RWX. Copy this file into another repo's .rwx/ and
+# change the "CHANGE ME" lines. Derived from the roborev + pi stages of
+# scripts/conductor-startup-script-cloud.sh (same pins, same checksums);
+# see skills/roborev-rwx/SKILL.md.
+#
+# Needs: RWX secret FIREWORKS_API_KEY (vault secret, never inline), and a
+# committed .roborev.toml naming the agent/model (this repo's pins pi +
+# a fireworks/ model). Review fails the run on medium-or-higher findings (--min-severity); fork PRs are unsupported (the clone only sees same-repo branches).
+on:
+  cli:
+    init:
+      commit-sha: ${{ event.git.sha }}
+      base-branch: main # CHANGE ME if the default branch differs
+  github:
+    pull_request:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        base-branch: ${{ event.github.pull_request.base.ref }}
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.4.1
+    with:
+      repository: https://github.com/elviskahoro/oss-hq.git # CHANGE ME
+      ref: ${{ init.commit-sha }}
+      preserve-git-dir: true
+      fetch-full-depth: true # roborev --branch needs history back to the base
+
+  - key: node
+    call: nodejs/install 1.2.1
+    with:
+      node-version: 22.19.0
+
+  # Pins mirror ROBOREV_PIN / PI_PIN in the startup script; bump together
+  # (scripts/validate-pins.sh checks roborev's and pi's).
+  - key: install-roborev
+    run: |
+      ROBOREV_PIN="0.63.0"
+      case "$(uname -m)" in
+        x86_64)  asset="roborev_${ROBOREV_PIN}_linux_amd64.tar.gz"; sha256="c7dbbefed91747b80d04498358fa0207880adb7e2b57c95677214195a3ece887" ;;
+        aarch64) asset="roborev_${ROBOREV_PIN}_linux_arm64.tar.gz"; sha256="bcb1e96d13efb903a80f965581c23bcf8e6d39a92ded01bf8ee61a2e9e18fe71" ;;
+        *) echo "no pinned roborev asset for $(uname -m)" >&2; exit 1 ;;
+      esac
+      curl -fsSLo "$asset" "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_PIN}/${asset}"
+      echo "${sha256}  ${asset}" | sha256sum -c -
+      tar -xzf "$asset" roborev
+      mkdir -p "$HOME/.local/bin"
+      install -m 0755 roborev "$HOME/.local/bin/roborev"
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  - key: install-pi
+    use: node
+    run: |
+      PI_PIN="1.4.0"
+      PI_INTEGRITY="sha512-Z41LpZ3yYHSC/UUps6Mr39UMFPwH8elhJBG9DY1P7kuzsE5qSK/6eMj2EHzO5evJRQWLbKSqUMw+4nCNtIyiQg=="
+      url="https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-${PI_PIN}.tgz"
+      curl -fsSLo pi.tgz "$url"
+      expected="$(echo "${PI_INTEGRITY#sha512-}" | base64 -d | od -An -v -tx1 | tr -d ' \n')"
+      echo "${expected}  pi.tgz" | sha512sum -c -
+      npm install -g --prefix "$HOME/.local" ./pi.tgz
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  - key: review
+    use: [code, install-roborev, install-pi]
+    env:
+      FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+    run: |
+      git config --global user.name roborev-ci
+      git config --global user.email roborev-ci@localhost
+      git fetch origin "${{ init.base-branch }}"
+      # check-agents exits 0 even when the agent is missing ("0 passed"), so
+      # require at least one passed and none failed.
+      out="$(roborev check-agents --timeout 30 2>&1)" || { echo "$out"; exit 1; }
+      echo "$out"
+      echo "$out" | grep -Eq '[1-9][0-9]* passed, 0 failed' || { echo "no review agent passed its smoke check" >&2; exit 1; }
+      roborev review --branch --base "origin/${{ init.base-branch }}" --wait --min-severity medium

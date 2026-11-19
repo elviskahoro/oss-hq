@@ -23,6 +23,10 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 - `rwx docs search "<q>"` / `rwx docs pull <path>`: current docs. Use Bash, not WebFetch. Don't write `.rwx` YAML from memory; `rwx docs pull /migrating/rwx-reference` first.
 - Migrating GitHub Actions: [`migrate-from-gha`](skills/migrate-from-gha/SKILL.md), then [`review-gha-migration`](skills/review-gha-migration/SKILL.md).
 
+### Roborev pipeline
+
+[`.rwx/roborev.yml`](.rwx/roborev.yml) runs roborev on PRs (needs secret `FIREWORKS_API_KEY`). Copyable to other repos: [`skills/roborev-rwx/SKILL.md`](skills/roborev-rwx/SKILL.md).
+
 ### Fan-out across repos
 
 [`scripts/dispatch-rwx-clone-repo.sh`](scripts/dispatch-rwx-clone-repo.sh) finds owner repos whose `.rwx/*.yml` use a task keyed `code` and dispatches one Conductor workspace per repo to rename it to `clone-repo` (PR via `prompts/conductor/create-pr.md`).

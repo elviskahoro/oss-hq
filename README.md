@@ -182,6 +182,7 @@ read too.
 | Publish or consume private Flox packages | [`floxhub-auth`](skills/floxhub-auth/SKILL.md) |
 | Authenticate the RWX CLI, or validate a change on RWX CI before opening a PR | [`rwx`](skills/rwx/SKILL.md) (summary in [`AGENTS.md`](AGENTS.md)) |
 | Check whether a GitHub issue is already being worked on, or claim it | [`github-issue-claims`](skills/github-issue-claims/SKILL.md) (adopt in other repos: [`AGENT-LABELS.md`](AGENT-LABELS.md)) |
+| Run roborev reviews in RWX CI, or copy the pipeline to another repo | [`roborev-rwx`](skills/roborev-rwx/SKILL.md) |
 | Migrate a GitHub Actions workflow to RWX | [`migrate-from-gha`](skills/migrate-from-gha/SKILL.md) |
 | Review an RWX config migrated from GitHub Actions | [`review-gha-migration`](skills/review-gha-migration/SKILL.md) |
 
