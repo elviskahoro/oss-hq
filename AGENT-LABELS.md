@@ -31,8 +31,7 @@ https://github.com/elviskahoro/oss-hq/blob/main/AGENT-LABELS.md
 
 | Label | Meaning |
 | --- | --- |
-| `status::in_progress` | Claimed and being worked on. Don't pick up. |
-| `claimed-by::<agent-id>` | Holder of the claim. Exactly one per issue. Created on demand at claim time (`gh label create "claimed-by::<id>" --color ededed --force`). |
+| `status::in_progress` | Claimed and being worked on. Don't pick up. The holder (id, branch, UTC time) is in the claim comment. |
 | `status::blocked` | Waiting on another issue. Body or comment must say `blocked by #N`. |
 | `status::deferred` | Parked on purpose. Revisit date goes in a comment. |
 | `needs-human` | A person must decide. Don't pick up. |
@@ -44,17 +43,17 @@ Open/closed is GitHub's native state. A linked open PR also means "in progress".
 
 ## 3. Protocol
 
-1. **Pick.** Open issue with none of `status::*`, `claimed-by::*`, `needs-human`, `hold::*`, and no linked open PR. Prefer `agent-ready`.
+1. **Pick.** Open issue with none of `status::*`, `needs-human`, `hold::*`, and no linked open PR. Prefer `agent-ready`.
    `gh issue list --state open --search '-label:"status::in_progress" -label:"status::blocked" -label:"status::deferred" -label:"needs-human" -label:"hold::external"'`
-   Search can't wildcard prefixes, so also reject any candidate whose labels include a `claimed-by::` or `hold::` entry, unless `stale-claim` is set. Issues labelled `stale-claim` are also pickable (`gh issue list --state open --label stale-claim`) even though they still carry `status::in_progress` and `claimed-by::`; see step 5 for takeover.
-2. **Claim.** Add `claimed-by::<id>` and `status::in_progress`, then comment with id, branch, and UTC time.
-3. **Verify.** Re-read the issue. If several `claimed-by::*` labels exist, the winner is the claim whose current `labeled` event is earliest: for each `claimed-by::*` label take its latest `labeled` event (ignore any already followed by `unlabeled`). If timestamps tie (they have 1-second resolution), the lexicographically smallest id wins. Read the timeline with `gh api --paginate repos/{owner}/{repo}/issues/{n}/timeline`. Losers remove only their own `claimed-by::<id>` label (leave `status::in_progress` for the winner) and pick something else. Re-claiming with your own id is success.
-4. **Heartbeat.** Comment about every 15 minutes. First confirm your `claimed-by::` label is still present; if not, stop.
-5. **Stale.** A scheduled reaper (not peer agents) adds `stale-claim` and a recovery comment after about 1 hour of silence, leaving the claim labels in place. An agent may take over a `stale-claim` issue: remove the old `claimed-by::<id>` and `stale-claim`, then do steps 2 and 3. The reaper is not implemented yet.
-6. **Release.** On finish, remove claim labels; the PR's `Closes #N` is the done signal. On failure, remove them and add `needs-human` or comment what was tried.
+   Search can't wildcard prefixes, so also reject any candidate whose labels include a `hold::` entry. Issues labelled `stale-claim` are also pickable (`gh issue list --state open --label stale-claim`) even though they still carry `status::in_progress`; see step 5 for takeover.
+2. **Claim.** Add `status::in_progress`, then comment `claim: <id> <branch> <UTC time>` as the first line. That comment records the holder; heartbeats must not start with `claim:`.
+3. **Verify.** Re-read the issue's comments. If another claim comment predates yours, the earliest claim comment wins (claim comments older than the latest `stale-claim` `labeled` or `status::in_progress` `unlabeled` (release) event are void, so a takeover is judged only against claims made after it; read it with `gh api --paginate repos/{owner}/{repo}/issues/{n}/timeline`); if timestamps tie (1-second resolution), the lexicographically smallest id wins. Losers remove nothing (`status::in_progress` belongs to the winner) and pick something else. Re-claiming with your own id is success.
+4. **Heartbeat.** Comment about every 15 minutes. First confirm `status::in_progress` is still present and your claim comment is still the winning, non-void claim; if not, stop.
+5. **Stale.** A scheduled reaper (not peer agents) adds `stale-claim` and a recovery comment when the issue has `status::in_progress` and its last comment is about 1 hour old, leaving `status::in_progress` in place. An agent may take over a `stale-claim` issue: remove `stale-claim`, then do steps 2 and 3. The reaper is not implemented yet.
+6. **Release.** On finish, remove `status::in_progress`; the PR's `Closes #N` is the done signal. On failure, remove it and add `needs-human` or comment what was tried.
 
 ## 4. Limits
 
-- Two agents can briefly both hold a label; step 3 resolves it, so keep work idempotent until verify passes.
+- Two agents can briefly both claim; step 3 resolves it by comment order, which is best-effort (1-second timestamps, no atomicity). Keep work idempotent until verify passes.
 - Heartbeats are comments, so they cost API calls and notifications. Keep the interval coarse.
 - Nothing here is enforced by GitHub. Agents that don't read this file will ignore it.
