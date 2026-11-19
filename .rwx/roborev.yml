@@ -81,15 +81,15 @@ tasks:
       # Gate on the findings, not roborev's SEVERITY_THRESHOLD_MET marker: the
       # review model emits it even when it lists only sub-threshold notes.
       rc=0
-      roborev review --branch --base "origin/$BASE_BRANCH" --wait > review.out 2>review.err || rc=$?
-      cat review.err review.out
+      roborev review --branch --base "origin/$BASE_BRANCH" --wait > review.out 2>&1 || rc=$?
+      cat review.out
       # rc 1 = Fail verdict (any finding, any severity); the grep below decides.
       # Anything else, or a Fail with no review text, is a real error.
       [ "$rc" -le 1 ] || { echo "roborev review exited $rc" >&2; exit "$rc"; }
       [ "$rc" -eq 0 ] || [ -s review.out ] || { echo "roborev exited 1 with no review output" >&2; exit 1; }
       if grep -Eiq -e '^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\*\*(severity: *)?(medium|high|critical)\*\*' \
            -e '^[[:space:]]*#{1,6}[[:space:]]*(\*\*)?[[:space:]]*(medium|high|critical)\b' \
-           -e '^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*(\*\*)?severity(\*\*)?:[[:space:]]*(\*\*)?(medium|high|critical)\b' review.out; then
+           -e '^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*(\*\*)?severity(\*\*)?:?(\*\*)?[[:space:]]*(\*\*)?(medium|high|critical)\b' review.out; then
         echo "roborev reported medium-or-higher findings" >&2
         exit 1
       fi
