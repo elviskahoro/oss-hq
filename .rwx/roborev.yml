@@ -75,7 +75,8 @@ tasks:
       git fetch origin "$BASE_BRANCH"
       # check-agents exits 0 even when the agent is missing ("0 passed"), so
       # require at least one passed and none failed.
-      out="$(roborev check-agents --timeout 30 2>&1)" || { echo "$out"; exit 1; }
+      agent="$(roborev config get agent)"
+      out="$(roborev check-agents --agent "$agent" --timeout 30 2>&1)" || { echo "$out"; exit 1; }
       echo "$out"
       echo "$out" | grep -Eq '[1-9][0-9]* passed, 0 failed' || { echo "no review agent passed its smoke check" >&2; exit 1; }
       # Gate on the findings, not roborev's SEVERITY_THRESHOLD_MET marker: the
