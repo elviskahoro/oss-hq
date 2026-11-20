@@ -23,6 +23,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 ### What you can do
 
+- Tests run on RWX, not locally: pytest isn't installed in Conductor sandboxes, so don't install it or skip tests. Export the owner's `RWX_ACCESS_TOKEN_<OWNER>` as `RWX_ACCESS_TOKEN`, then `rwx run .rwx/<file>.yml --wait --fail-fast` (e.g. `.rwx/test-prompts.yml` runs the pytest suite and the prompts-drift check); `rwx logs <task-id>` for failures.
 - `rwx run .rwx/<file>.yml --wait --fail-fast`: run CI on the working tree, uncommitted changes included, with no commit or push. `--target <task>` runs one task.
 - `rwx results` / `rwx runs list` / `rwx logs`: see what failed and pull the logs. Fix and re-run until green, then open the PR.
 - `rwx lint .rwx/<file>.yml`: validate after every edit to `.rwx/*.yml`.
