@@ -8,9 +8,9 @@
 # (.github/workflows/conductor-startup-script-cloud.yml) and usable
 # locally:
 #
-#   1b. .rwx/roborev.yml (copyable RWX pipeline) vs the startup script:
-#      ROBOREV_PIN, linux roborev sha256 pairs, PI_PIN + PI_INTEGRITY, and
-#      node-version >= PI_NODE_MIN prefix
+#   1b. .rwx/roborev.yml (RWX pipeline) vs the startup script:
+#      ROBOREV_VERSION == ROBOREV_PIN, PI_VERSION == PI_PIN, and
+#      node-version major >= PI_NODE_MIN major
 #   1. roborev version: scripts/conductor-startup-script-cloud.sh's
 #      ROBOREV_PIN == envs/repackage's [build.roborev] version ==
 #      envs/floxhub-provision's roborev.version (^-stripped)
@@ -105,12 +105,26 @@ else
 fi
 
 RWX_YML="$(dirname "${STARTUP}")/../.rwx/roborev.yml"
-# 1b. The copyable RWX pipeline (.rwx/roborev.yml) carries the same pin.
-RWX_PIPELINE_PIN="$(sed -n 's/^ *ROBOREV_PIN="\([^"]*\)".*/\1/p' "${RWX_YML}")"
+# 1b. The RWX pipeline (.rwx/roborev.yml, same shape as gtm-sdk's) carries the same pins.
+RWX_PIPELINE_PIN="$(sed -n 's/^ *ROBOREV_VERSION: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
 if [[ -n "${PIN}" && "${PIN}" == "${RWX_PIPELINE_PIN}" ]]; then
   pass "roborev rwx pipeline pin" "${PIN}"
 else
   fail "roborev rwx pipeline pin" "drift: startup-script=${PIN:-<missing>}, .rwx/roborev.yml=${RWX_PIPELINE_PIN:-<missing>}"
+fi
+STARTUP_PI_PIN="$(sed -n 's/^ *PI_PIN="\([^"]*\)".*/\1/p' "${STARTUP}" | head -1)"
+RWX_PI_PIN="$(sed -n 's/^ *PI_VERSION: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
+if [[ -n "${STARTUP_PI_PIN}" && "${STARTUP_PI_PIN}" == "${RWX_PI_PIN}" ]]; then
+  pass "pi rwx pipeline pin" "${STARTUP_PI_PIN}"
+else
+  fail "pi rwx pipeline pin" "drift: startup-script=${STARTUP_PI_PIN:-<missing>}, .rwx/roborev.yml=${RWX_PI_PIN:-<missing>}"
+fi
+RWX_NODE="$(sed -n 's/^ *node-version: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
+NODE_MIN="$(sed -n 's/^PI_NODE_MIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
+if [[ -n "${RWX_NODE}" && -n "${NODE_MIN}" && "${RWX_NODE%%.*}" -ge "${NODE_MIN%%.*}" ]]; then
+  pass "node rwx pipeline floor" "node-version ${RWX_NODE} >= PI_NODE_MIN major ${NODE_MIN%%.*}"
+else
+  fail "node rwx pipeline floor" "drift: .rwx/roborev.yml node-version=${RWX_NODE:-<missing>} vs PI_NODE_MIN=${NODE_MIN:-<missing>}"
 fi
 
 # 2. roborev (platform, sha256) pairs as sets: asset=/sha256= lines strictly
@@ -127,27 +141,6 @@ roborev_pairs() { # <source-file> <out-file>: sorted "<platform> <sha256>" lines
 }
 roborev_pairs "${WORK}/roborev_install" "${WORK}/pairs_install"
 roborev_pairs "${WORK}/repackage_section" "${WORK}/pairs_manifest"
-# Whole-file extraction: .rwx/roborev.yml must hold only roborev's sha256= lines (pi uses an SRI integrity string).
-roborev_pairs "${RWX_YML}" "${WORK}/pairs_rwx"
-pi_field() { sed -n "s/^ *$1=\"\([^\"]*\)\".*/\1/p" "$2" | head -1; }
-if [[ -n "$(pi_field PI_PIN "${STARTUP}")" && "$(pi_field PI_PIN "${STARTUP}")" == "$(pi_field PI_PIN "${RWX_YML}")" && "$(pi_field PI_INTEGRITY "${STARTUP}")" == "$(pi_field PI_INTEGRITY "${RWX_YML}")" ]]; then
-  pass "pi rwx pipeline pin" "PI_PIN + PI_INTEGRITY match the startup script"
-else
-  fail "pi rwx pipeline pin" "drift: PI_PIN/PI_INTEGRITY differ between startup script and .rwx/roborev.yml"
-fi
-RWX_NODE="$(sed -n 's/^ *node-version: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
-NODE_MIN="$(sed -n 's/^PI_NODE_MIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
-if [[ -n "${RWX_NODE}" && -n "${NODE_MIN}" && "${RWX_NODE}" == "${NODE_MIN}"* ]]; then
-  pass "node rwx pipeline floor" "node-version ${RWX_NODE} satisfies PI_NODE_MIN ${NODE_MIN}"
-else
-  fail "node rwx pipeline floor" "drift: .rwx/roborev.yml node-version=${RWX_NODE:-<missing>} vs PI_NODE_MIN=${NODE_MIN:-<missing>}"
-fi
-grep "^linux_" "${WORK}/pairs_install" >"${WORK}/pairs_install_linux" || true
-if [[ -s "${WORK}/pairs_rwx" ]] && diff -q "${WORK}/pairs_install_linux" "${WORK}/pairs_rwx" >/dev/null; then
-  pass "roborev rwx pipeline sha256 pairs" "match the startup script's linux roborev_install() pairs"
-else
-  fail "roborev rwx pipeline sha256 pairs" ".rwx/roborev.yml != startup script's roborev_install() pairs (or extraction empty)"
-fi
 # Non-empty guard first: two empty pair files would diff as a vacuous pass —
 # exactly the silent failure a pin checker must never have.
 if [[ ! -s "${WORK}/pairs_install" || ! -s "${WORK}/pairs_manifest" ]]; then

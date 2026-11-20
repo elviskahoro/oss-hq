@@ -1,22 +1,21 @@
 ---
 name: roborev-rwx
-description: Run roborev code review as an RWX CI pipeline, or copy that pipeline into another repo. Use when adding roborev to a repo's CI, bumping the pipeline's roborev/pi pins, or debugging a failing roborev RWX run.
+description: Run roborev code review as a dispatch-only RWX pipeline, or copy that pipeline into another repo. Use when adding roborev to a repo, bumping the pipeline's roborev/pi pins, or debugging a failing roborev RWX run.
 ---
 
 # roborev on RWX
 
-[`.rwx/roborev.yml`](../../.rwx/roborev.yml) installs pinned, checksum-verified roborev and pi (the same pins as `scripts/conductor-startup-script-cloud.sh`), then runs `roborev review --branch --wait` against the PR's base branch and fails the run if its output lists medium-or-higher findings. Fork PRs are unsupported: the clone only sees same-repo branches.
+[`.rwx/roborev.yml`](../../.rwx/roborev.yml) is dispatch-only (`on: cli`): not a PR check, no comment or status. Run it with `rwx run .rwx/roborev.yml --wait`; this is the only way to run roborev. It installs pinned roborev (`ROBOREV_VERSION`) and pi (`PI_VERSION`), commits any uncommitted local work so roborev sees it, reviews `merge-base(origin/main, HEAD)..HEAD`, and fails closed: `roborev ci review` exits 0 even with findings, so the task greps for `roborev: Review Passed` and exits 1 if absent.
+
+It must match gtm-sdk's `.rwx/roborev.yml` (elviskahoro/gtm-sdk#1428); only the repo name, clone URL and `GITHUB_REPOSITORY` differ. When the shape changes, update both repos together.
 
 ## Copy it to another repo
 
-1. Copy `.rwx/roborev.yml` into the repo's `.rwx/`.
-2. Change the `git/clone` `repository:` line and the CLI `base-branch` default if it is not `main` (both marked `CHANGE ME`). For a private repo, also add a `github-token` to that `git/clone` (see `rwx docs pull /docs/github-triggers`).
-3. Commit a `.roborev.toml` with `agent` and `model` (copy this repo's; the `fireworks/` model prefix is required for pi).
-4. Add RWX secret `FIREWORKS_API_KEY` in the repo's org (never inline it).
-5. `rwx lint .rwx/roborev.yml`, then `rwx run .rwx/roborev.yml --wait --fail-fast`.
-
-Using a different agent: change `agent` in `.roborev.toml`, drop or replace the `install-pi` task, and pass that agent's credentials in the `review` task's `env`.
+1. Copy `.rwx/roborev.yml`; change the clone `repository:` and `GITHUB_REPOSITORY`.
+2. Commit a `.roborev.toml` with `agent` and `model` (the `fireworks/` prefix is required for pi).
+3. Add RWX secret `FIREWORKS_API_KEY` (never inline it).
+4. `rwx lint .rwx/roborev.yml`, then `rwx run .rwx/roborev.yml --wait`.
 
 ## Bump pins
 
-Change `ROBOREV_PIN` + sha256s in the install task, in the startup script, and in the Flox manifests together; `scripts/validate-pins.sh` fails CI if the pipeline's roborev pin/sha256s or pi pin/integrity drift from the startup script. Pi: new `PI_PIN` + `PI_INTEGRITY` from `npm view @earendil-works/pi-coding-agent@<v> dist`, and re-check the `node-version` floor against its `engines`.
+Change `ROBOREV_VERSION` / `PI_VERSION` in the pipeline, `ROBOREV_PIN` / `PI_PIN` in the startup script, and the Flox manifests together; `scripts/validate-pins.sh` fails CI on drift. Re-check the pipeline's `node-version` against pi's `engines`.
