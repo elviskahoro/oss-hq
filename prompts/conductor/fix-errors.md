@@ -144,7 +144,7 @@ git push
 
 Review threads (especially from `pullfrog`, also roborev and humans) must not be left open once the issue they raise is fixed. After the fix is pushed:
 
-- List unresolved threads (id, file, line, and the full comment text, since the first comment holds the finding and later ones may narrow it). Add `| select(.comments.nodes[0].author.login | test("pullfrog"))` before `| {id` to see only pullfrog's:
+- List unresolved threads (id, file, line, and the full comment text, since the first comment holds the finding and later ones may narrow it). Add `| select(.comments.nodes[0].author.login | test("pullfrog"))` before `| {id` to see only pullfrog's (command on the next line).
   `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:20){nodes{author{login} body}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number> --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved|not) | {id,path,line,isOutdated,comments:[.comments.nodes[]|{who:.author.login,body}]}'`
   Get `<owner>/<repo>` from `gh repo view --json nameWithOwner`, and `<pr-number>` from `gh pr view --json number`. Also read the top-level review body (`gh pr view --json reviews`): pullfrog sometimes puts a finding there instead of inline.
 - For each thread whose concern is actually resolved by a pushed commit, reply briefly with the commit SHA, then resolve it: `gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<thread-id>`
