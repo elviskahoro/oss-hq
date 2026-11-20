@@ -137,7 +137,7 @@ git push
 2. Fix the code for each thread. Don't resolve first; resolving without fixing is forbidden.
 3. Run the relevant tests, commit, and `git push`. Pullfrog only reviews pushed commits, and pushing to an open PR needs no approval.
 4. For each addressed thread, reply with the commit SHA and resolve it (below). Resolving the last open pullfrog thread or pushing a new commit retriggers pullfrog on its own.
-5. Wait about a minute, then run `gh pr checks <pr-number>` and list threads again. If `pullfrog-approval` is pending or its run is in progress (`gh pr checks`, `gh run list --workflow pullfrog`), pullfrog is already running: do NOT comment `@pullfrog`; wait and re-check every minute or two. Only if it is red or stale (no run in progress, no new comments, latest push not re-reviewed) request a re-review once: `gh pr comment <pr-number> --body "@pullfrog"`.
+5. Wait about a minute, then run `gh pr checks <pr-number>` and list threads again. If `pullfrog-approval` is pending or its run is in progress (`gh pr checks`, `gh run list --workflow pullfrog`), pullfrog is already running: do NOT comment `@pullfrog`; wait and re-check every minute or two. Re-running pullfrog is always done by this comment, never `gh run rerun` or the check's re-run button. Only if it is red or stale (no run in progress, no new comments, latest push not re-reviewed) request a re-review once: `gh pr comment <pr-number> --body "@pullfrog"`.
 6. If pullfrog left new comments, repeat from 1. Never report fixed while `pullfrog-approval` is failing or pending; if it is still not green after three rounds, report the open threads and what you tried.
 
 ### Resolve review comments you have addressed
