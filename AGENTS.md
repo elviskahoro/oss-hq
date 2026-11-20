@@ -25,7 +25,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 ### Roborev pipeline
 
-[`.rwx/roborev.yml`](.rwx/roborev.yml) runs roborev on PRs (needs secret `FIREWORKS_API_KEY`). Copyable to other repos: [`skills/roborev-rwx/SKILL.md`](skills/roborev-rwx/SKILL.md).
+[`.rwx/roborev.yml`](.rwx/roborev.yml) is dispatch-only (`on: cli`; no PR check, comment or status) and needs secret `FIREWORKS_API_KEY`. The only way to run roborev: `rwx run .rwx/roborev.yml --wait`. It must match gtm-sdk's `.rwx/roborev.yml` (only repo name, clone URL, `GITHUB_REPOSITORY` differ); change both together. See [`skills/roborev-rwx/SKILL.md`](skills/roborev-rwx/SKILL.md).
 
 ### Fan-out across repos
 

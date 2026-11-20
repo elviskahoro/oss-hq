@@ -1,21 +1,13 @@
-# Roborev code review on RWX. Copy this file into another repo's .rwx/ and
-# change the "CHANGE ME" lines. Derived from the roborev + pi stages of
-# scripts/conductor-startup-script-cloud.sh (same pins, same checksums);
-# see skills/roborev-rwx/SKILL.md.
-#
-# Needs: RWX secret FIREWORKS_API_KEY (vault secret, never inline), and a
-# committed .roborev.toml naming the agent/model (this repo's pins pi +
-# a fireworks/ model). Review fails the run on medium-or-higher findings; fork PRs are unsupported (the clone only sees same-repo branches).
+# RoboRev review as a tool for the local agent. Dispatch-only (cli trigger): it
+# is not a PR check, posts no comment or status, and does not replace
+# pullfrog-approval. Run it before pushing:
+#   rwx run .rwx/roborev.yml --wait
+# It reviews local work (committed or not) against origin/main with the model in
+# .roborev.toml (pi + Fireworks) and fails when roborev reports findings.
 on:
   cli:
     init:
-      commit-sha: ${{ event.git.sha }}
-      base-branch: main # CHANGE ME if the default branch differs
-  github:
-    pull_request:
-      init:
-        commit-sha: ${{ event.git.sha }}
-        base-branch: ${{ event.github.pull_request.pull_request.base.ref }}
+      ref: ${{ event.git.sha }}
 
 base:
   image: ubuntu:24.04
@@ -24,73 +16,64 @@ base:
 tasks:
   - key: code
     call: git/clone 2.4.1
+    cache: false
     with:
-      repository: https://github.com/elviskahoro/oss-hq.git # CHANGE ME
-      ref: ${{ init.commit-sha }}
+      repository: https://github.com/elviskahoro/oss-hq.git
+      ref: ${{ init.ref }}
+      submodules: false
       preserve-git-dir: true
-      fetch-full-depth: true # roborev --branch needs history back to the base
+      github-token: ${{ github.token }}
 
   - key: node
     call: nodejs/install 1.2.1
     with:
-      node-version: 22.19.0
+      node-version: 24.22.3
 
-  # Pins mirror ROBOREV_PIN / PI_PIN in the startup script; bump together
-  # (scripts/validate-pins.sh checks roborev's and pi's).
-  - key: install-roborev
-    run: |
-      ROBOREV_PIN="0.63.0"
-      case "$(uname -m)" in
-        x86_64)  asset="roborev_${ROBOREV_PIN}_linux_amd64.tar.gz"; sha256="c7dbbefed91747b80d04498358fa0207880adb7e2b57c95677214195a3ece887" ;;
-        aarch64) asset="roborev_${ROBOREV_PIN}_linux_arm64.tar.gz"; sha256="bcb1e96d13efb903a80f965581c23bcf8e6d39a92ded01bf8ee61a2e9e18fe71" ;;
-        *) echo "no pinned roborev asset for $(uname -m)" >&2; exit 1 ;;
-      esac
-      curl -fsSLo "$asset" "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_PIN}/${asset}"
-      echo "${sha256}  ${asset}" | sha256sum -c -
-      tar -xzf "$asset" roborev
-      mkdir -p "$HOME/.local/bin"
-      install -m 0755 roborev "$HOME/.local/bin/roborev"
-      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
-
-  - key: install-pi
-    use: node
-    run: |
-      PI_PIN="1.4.0"
-      PI_INTEGRITY="sha512-Z41LpZ3yYHSC/UUps6Mr39UMFPwH8elhJBG9DY1P7kuzsE5qSK/6eMj2EHzO5evJRQWLbKSqUMw+4nCNtIyiQg=="
-      url="https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-${PI_PIN}.tgz"
-      curl -fsSLo pi.tgz "$url"
-      expected="$(echo "${PI_INTEGRITY#sha512-}" | base64 -d | od -An -v -tx1 | tr -d ' \n')"
-      echo "${expected}  pi.tgz" | sha512sum -c -
-      npm install -g --prefix "$HOME/.local" ./pi.tgz
-      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
-
-  - key: review
-    use: [code, install-roborev, install-pi]
+  - key: roborev
+    use: [code, node]
+    cache: false
     env:
-      FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
-      BASE_BRANCH: ${{ init.base-branch }}
+      GITHUB_REPOSITORY: elviskahoro/oss-hq
+      GH_TOKEN: ${{ github.token }}
+      # trunk-ignore(semgrep/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret): task-scoped `env:` in an RWX run definition, not a GHA workflow-level env block.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ROBOREV_VERSION: 0.63.0
+      PI_VERSION: 1.4.0
     run: |
-      git config --global user.name roborev-ci
-      git config --global user.email roborev-ci@localhost
-      git fetch origin "$BASE_BRANCH"
-      # check-agents exits 0 even when the agent is missing ("0 passed"), so
-      # require at least one passed and none failed.
-      agent="$(roborev config get agent)"
-      out="$(roborev check-agents --agent "$agent" --timeout 30 2>&1)" || { echo "$out"; exit 1; }
-      echo "$out"
-      echo "$out" | grep -Eq '[1-9][0-9]* passed, 0 failed' || { echo "no review agent passed its smoke check" >&2; exit 1; }
-      # Gate on the findings, not roborev's SEVERITY_THRESHOLD_MET marker: the
-      # review model emits it even when it lists only sub-threshold notes.
-      rc=0
-      roborev review --branch --base "origin/$BASE_BRANCH" --wait > review.out 2>&1 || rc=$?
-      cat review.out
-      # rc 1 = Fail verdict (any finding, any severity); the grep below decides.
-      # Anything else, or a Fail with no review text, is a real error.
-      [ "$rc" -le 1 ] || { echo "roborev review exited $rc" >&2; exit "$rc"; }
-      [ "$rc" -eq 0 ] || [ -s review.out ] || { echo "roborev exited 1 with no review output" >&2; exit 1; }
-      if grep -Eiq -e '^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*\*\*(severity: *)?(medium|high|critical)\*\*' \
-           -e '^[[:space:]]*#{1,6}[[:space:]]*(\*\*)?[[:space:]]*(medium|high|critical)\b' \
-           -e '^[[:space:]]*([-*]|[0-9]+\.)?[[:space:]]*(\*\*)?severity(\*\*)?:?(\*\*)?[[:space:]]*(\*\*)?(medium|high|critical)\b' review.out; then
-        echo "roborev reported medium-or-higher findings" >&2
+      set -euo pipefail
+      # Pinned to the version in .flox/env/manifest.toml (the installer only
+      # fetches latest).
+      mkdir -p "$HOME/.local/bin"
+      curl -fsSL "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz" \
+        | tar -xz -C "$HOME/.local/bin" roborev
+      export PATH="$HOME/.local/bin:$PATH"
+      roborev version
+      # .roborev.toml selects the pi agent; roborev finds no agent without it.
+      npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
+      pi --version
+      git config --global credential.helper store
+      echo "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials
+      chmod 600 ~/.git-credentials
+      # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
+      export FIREWORKS_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
+      git fetch --no-tags origin main:refs/remotes/origin/main
+      # `rwx run` ships local work as a patch on top of the nearest pushed
+      # commit, so commit it here or roborev (committed ranges only) sees an
+      # empty diff. Merge-base, not origin/main, so a main that moved ahead
+      # of the clone isn't reviewed in reverse.
+      if [ -n "$(git status --porcelain)" ]; then
+        git add -A
+        git -c user.name=roborev-ci -c user.email=roborev-ci@localhost commit -q -m "local changes under review"
+      fi
+      base="$(git merge-base origin/main HEAD)"
+      echo "reviewing ${base}..HEAD"
+      git diff --stat "${base}..HEAD" | tail -5
+      args=(--ref "${base}..HEAD")
+      # `roborev ci review` exits 0 even with findings, so gate on the verdict
+      # header ("Review Passed" vs "Review Complete"/"Review Failed"). Fails
+      # closed if no verdict is printed.
+      roborev ci review "${args[@]}" 2>&1 | tee roborev-output.txt
+      if ! grep -q "roborev: Review Passed" roborev-output.txt; then
+        echo "roborev did not pass: see findings above" >&2
         exit 1
       fi
