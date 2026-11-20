@@ -2,6 +2,15 @@
 
 Sandbox for provisioning Conductor cloud workspaces and the agent tooling around them (roborev, trunk, RWX, Flox). See [README.md](README.md) for the overview and the skill index; each task has a skill under [`skills/`](skills/). `CLAUDE.md` is a symlink to this file.
 
+## Commits
+
+After a change is verified (tests, `rwx run` for CI or lint config, render checks), commit it without waiting to be asked.
+
+- Use Conventional Commits and end the message with the attribution line the session supplies (a system-reminder from the harness); if none is given, omit it.
+- Do not push, merge, or open a PR unless asked.
+- Never commit build output, caches, or secrets.
+- This replaces the default "commit or push only when the user asks" for commits only; pushing still needs a request.
+
 ## RWX
 
 Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`skills/rwx/SKILL.md`](skills/rwx/SKILL.md).
