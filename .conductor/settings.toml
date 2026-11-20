@@ -427,7 +427,9 @@ gh issue comment <number> --repo <owner/repo> --body "Addressed in <PR URL from 
 
 Review threads (especially from `pullfrog`, also roborev and humans) must not be left open once the issue they raise is fixed. **Unresolved threads block pullfrog's approval**, so fixing the code is only half the job: marking the thread resolved is part of the fix. Whenever you push fixes to an existing PR (including updating one in this workflow, and every time Step 13 pushes a fix), do this right after the push, then recheck for new threads until none you've addressed remain open:
 
-- List unresolved threads: `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{author{login} body path}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number>`
+- List unresolved threads (id, file, line, and the full comment text, since the first comment holds the finding and later ones may narrow it). Add `| select(.comments.nodes[0].author.login | test("pullfrog"))` before `| {id` to see only pullfrog's:
+  `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:20){nodes{author{login} body}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number> --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved|not) | {id,path,line,isOutdated,comments:[.comments.nodes[]|{who:.author.login,body}]}'`
+  Get `<owner>/<repo>` from `gh repo view --json nameWithOwner`, and `<pr-number>` from `gh pr view --json number`. Also read the top-level review body (`gh pr view --json reviews`): pullfrog sometimes puts a finding there instead of inline.
 - For each thread whose concern is actually resolved by a pushed commit, reply briefly with the commit SHA, then resolve it: `gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<thread-id>`
 - Leave a thread open, with a reply explaining why, if the concern was declined, deferred, or only partly fixed. Never resolve a thread whose issue is still present.
 
@@ -761,19 +763,22 @@ git push
 
 ### Pullfrog approval: fix, push, resolve, rerun
 
-A failing `pullfrog-approval` check means pullfrog's inline comments are unaddressed. Do all of this without being told, in order:
+`pullfrog-approval` is a gate, not a test: it is red or pending while pullfrog has unresolved review threads on the PR, or hasn't re-reviewed the latest push. Logs say nothing useful and rerunning the check does nothing. Do all of this without being told, in order:
 
-1. Fix the code for every pullfrog inline comment. Exception: a comment that flags a pre-existing issue follows the triage table (file or link an issue, reply on the thread); report the check as blocked by it rather than looping.
-2. Push. Unpushed fixes don't count, and pushing to an open PR needs no approval.
-3. Resolve every addressed thread (below).
-4. Re-trigger pullfrog: if the check doesn't rerun or update on its own, `gh pr comment <pr-number> --body "@pullfrog"`.
-5. Check `gh pr checks` once and list threads again. If pullfrog left new comments, repeat from 1. Never report fixed while `pullfrog-approval` is failing or pending.
+1. List the unresolved threads (command below). Each is a finding to fix; treat every one as in scope, including nits. Exception: a comment that flags a pre-existing issue follows the triage table (file or link an issue, reply on the thread, resolve it); report the check as blocked by it rather than looping.
+2. Fix the code for each thread. Don't resolve first; resolving without fixing is forbidden.
+3. Run the relevant tests, commit, and `git push`. Pullfrog only reviews pushed commits, and pushing to an open PR needs no approval.
+4. For each addressed thread, reply with the commit SHA and resolve it (below). Resolving the last open pullfrog thread or pushing a new commit retriggers pullfrog on its own.
+5. Wait about a minute, then run `gh pr checks <pr-number>` and list threads again. If `pullfrog-approval` is still pending or red with nothing new from pullfrog, request a re-review: `gh pr comment <pr-number> --body "@pullfrog"`. Then re-check after a couple of minutes.
+6. If pullfrog left new comments, repeat from 1. Never report fixed while `pullfrog-approval` is failing or pending; if it is still not green after three rounds, report the open threads and what you tried.
 
 ### Resolve review comments you have addressed
 
 Review threads (especially from `pullfrog`, also roborev and humans) must not be left open once the issue they raise is fixed. After the fix is pushed:
 
-- List unresolved threads: `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{author{login} body path}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number>`
+- List unresolved threads (id, file, line, and the full comment text, since the first comment holds the finding and later ones may narrow it). Add `| select(.comments.nodes[0].author.login | test("pullfrog"))` before `| {id` to see only pullfrog's:
+  `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:20){nodes{author{login} body}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number> --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved|not) | {id,path,line,isOutdated,comments:[.comments.nodes[]|{who:.author.login,body}]}'`
+  Get `<owner>/<repo>` from `gh repo view --json nameWithOwner`, and `<pr-number>` from `gh pr view --json number`. Also read the top-level review body (`gh pr view --json reviews`): pullfrog sometimes puts a finding there instead of inline.
 - For each thread whose concern is actually resolved by a pushed commit, reply briefly with the commit SHA, then resolve it: `gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<thread-id>`
 - Leave a thread open, with a reply explaining why, if the concern was declined, deferred, or only partly fixed. Never resolve a thread whose issue is still present.
 
