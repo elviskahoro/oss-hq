@@ -1,47 +1,13 @@
 #!/usr/bin/env bash
 # Pin-sync validation for the workspace startup provisioning pins.
 #
-# The roborev version + sha256 pins and the
-# uv/pytest/reflex/ruff/pyright/pyrefly pins are deliberately duplicated across files (roborev
-# review finding: previously only comments kept them in sync). This is the
-# automated drift check — run in CI
-# (.github/workflows/conductor-startup-script-cloud.yml) and usable
-# locally:
-#
-#   1b. .rwx/roborev.yml (RWX pipeline) vs the startup script:
-#      ROBOREV_VERSION == ROBOREV_PIN, PI_VERSION == PI_PIN, and
-#      node-version major >= PI_NODE_MIN major
-#   1. roborev version: scripts/conductor-startup-script-cloud.sh's
-#      ROBOREV_PIN == envs/repackage's [build.roborev] version ==
-#      envs/floxhub-provision's roborev.version (^-stripped)
-#   2. roborev (platform, sha256) pairs: the startup script's
-#      roborev_install() case block == envs/repackage's [build.roborev]
-#      assets, as sets
-#   3. (retired: the trunk launcher checksum check, removed when trunk left
-#      the workspace; numbers kept stable so cross-references still hold)
-#   4. paste-safety of the startup script: no triple-double-quote sequences
-#      and no backslash line-continuations anywhere in it — Conductor
-#      serializes the GUI setup field into a TOML multiline string, and
-#      either would corrupt the paste. Comment-enforced constraints rot
-#      silently; this makes CI fail instead.
-#   5. uv version (issue #44): the startup script's UV_PIN == envs/prebuilt
-#      uv.version == envs/floxhub-provision uv.version — the Flox uv is a
-#      separate (process-scoped) install of the same tool; two different
-#      uv versions in one workspace is the same confusion class as the
-#      roborev drift.
-#   6. pytest/reflex/ruff/pyright/pyrefly pins (issue #44): single-home pins with no Flox
-#      counterpart — the check is presence-and-shape, so an accidental
-#      unpinning (empty, or a floating range instead of an exact x.y.z)
-#      fails CI instead of silently floating.
-#   7. PI_PIN + PI_INTEGRITY (issue #85): single-home pins with no Flox
-#      counterpart — both must be present and non-empty, the pin an exact
-#      x.y.z (same shape rule as check 6), the integrity
-#      must look like `sha512-<base64>` (the npm registry `dist.integrity`
-#      field shape), and the pin must match the same package the URL pins
-#      (a re-pin that leaves the URL stale would download a different
-#      tarball than the integrity verifies).
-#   8. PI_NODE_MIN + PI_NODE_MIN_PIN (issue #85): a major.minor Node floor,
-#      recorded against the pin it was read from, which must equal PI_PIN.
+# The roborev version (pinned in .rwx/roborev.yml), the uv pin and the
+# RESEND/ENTIRE pins are checked here. Sync surfaces:
+#   1. roborev: .rwx/roborev.yml ROBOREV_VERSION == envs/repackage's
+#      [build.roborev] version == envs/floxhub-provision's roborev.version
+#   4. startup-script paste-safety (no triple-quotes / line-continuations)
+#   5. uv: UV_PIN == envs/prebuilt == envs/floxhub-provision uv.version
+#   6. RESEND_PIN exact x.y.z + hex-64 sha256s
 #   9. ENTIRE_PIN (issue #91): exactly x.y.z, like pi's pin shape. The four
 #      ENTIRE_SHA256_<platform> constants must all be present and hex-64; a
 #      missing constant makes the runtime install fail closed on that
@@ -86,69 +52,20 @@ fail() { # <check> <detail>
 }
 pass() { log "PASS  $1 — $2"; }
 
-# The roborev_install function body, the only place in the startup script
-# with roborev asset/sha256 pairs (the rwx stage has sha256s but no assets,
-# and must stay out of this comparison).
-awk '/^roborev_install\(\)/,/^}$/' "${STARTUP}" >"${WORK}/roborev_install"
 # The [build.roborev] manifest section (up to the next table header).
 awk 'BEGIN { f = 0 } /^\[build\.roborev\]$/ { f = 1; next } /^\[/ { f = 0 } f' \
   "${REPACKAGE_MANIFEST}" >"${WORK}/repackage_section"
 
-# 1. roborev version across the three sources.
-PIN="$(sed -n 's/^ROBOREV_PIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
+# 1. roborev version: roborev now runs only as an RWX task (issue #185), so
+# .rwx/roborev.yml is its pin home; the Flox manifests must still agree.
+RWX_YML="${REPO_ROOT}/.rwx/roborev.yml"
+PIN="$(sed -n 's/^ *ROBOREV_VERSION: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
 REPACKAGE_VERSION="$(sed -n 's/^version = "\([^"]*\)".*/\1/p' "${WORK}/repackage_section" | head -1)"
 PROVISION_VERSION="$(sed -n 's/^roborev\.version *= *"\^\{0,1\}\([^"]*\)".*/\1/p' "${PROVISION_MANIFEST}")"
 if [[ -n "${PIN}" && "${PIN}" == "${REPACKAGE_VERSION}" && "${PIN}" == "${PROVISION_VERSION}" ]]; then
-  pass "roborev version" "pin ${PIN} == repackage ${REPACKAGE_VERSION} == floxhub-provision ^${PROVISION_VERSION}"
+  pass "roborev version" "rwx pipeline ${PIN} == repackage ${REPACKAGE_VERSION} == floxhub-provision ^${PROVISION_VERSION}"
 else
-  fail "roborev version" "drift: startup-script=${PIN:-<missing>}, repackage=${REPACKAGE_VERSION:-<missing>}, floxhub-provision=${PROVISION_VERSION:-<missing>}"
-fi
-
-RWX_YML="$(dirname "${STARTUP}")/../.rwx/roborev.yml"
-# 1b. The RWX pipeline (.rwx/roborev.yml, same shape as gtm-sdk's) carries the same pins.
-RWX_PIPELINE_PIN="$(sed -n 's/^ *ROBOREV_VERSION: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
-if [[ -n "${PIN}" && "${PIN}" == "${RWX_PIPELINE_PIN}" ]]; then
-  pass "roborev rwx pipeline pin" "${PIN}"
-else
-  fail "roborev rwx pipeline pin" "drift: startup-script=${PIN:-<missing>}, .rwx/roborev.yml=${RWX_PIPELINE_PIN:-<missing>}"
-fi
-STARTUP_PI_PIN="$(sed -n 's/^ *PI_PIN="\([^"]*\)".*/\1/p' "${STARTUP}" | head -1)"
-RWX_PI_PIN="$(sed -n 's/^ *PI_VERSION: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
-if [[ -n "${STARTUP_PI_PIN}" && "${STARTUP_PI_PIN}" == "${RWX_PI_PIN}" ]]; then
-  pass "pi rwx pipeline pin" "${STARTUP_PI_PIN}"
-else
-  fail "pi rwx pipeline pin" "drift: startup-script=${STARTUP_PI_PIN:-<missing>}, .rwx/roborev.yml=${RWX_PI_PIN:-<missing>}"
-fi
-RWX_NODE="$(sed -n 's/^ *node-version: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
-NODE_MIN="$(sed -n 's/^PI_NODE_MIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
-if [[ -n "${RWX_NODE}" && -n "${NODE_MIN}" && "${RWX_NODE%%.*}" -ge "${NODE_MIN%%.*}" ]]; then
-  pass "node rwx pipeline floor" "node-version ${RWX_NODE} >= PI_NODE_MIN major ${NODE_MIN%%.*}"
-else
-  fail "node rwx pipeline floor" "drift: .rwx/roborev.yml node-version=${RWX_NODE:-<missing>} vs PI_NODE_MIN=${NODE_MIN:-<missing>}"
-fi
-
-# 2. roborev (platform, sha256) pairs as sets: asset=/sha256= lines strictly
-# alternate in both sources, so zip the two ordered lists and sort. The
-# greps are neutralized for set -e/pipefail (grep exits 1 on zero matches);
-# a missing section then surfaces as a diff failure below, with a message,
-# instead of a silent abort.
-roborev_pairs() { # <source-file> <out-file>: sorted "<platform> <sha256>" lines
-  grep -E 'asset="roborev_' "$1" >"${WORK}/asset_lines" || true
-  grep -oE '(linux|darwin)_[a-z0-9]+\.tar\.gz' "${WORK}/asset_lines" >"${WORK}/platforms" || true
-  grep -oE 'sha256="[0-9a-f]{64}"' "$1" >"${WORK}/sha_lines" || true
-  sed 's/^sha256="//; s/"$//' "${WORK}/sha_lines" >"${WORK}/hashes"
-  paste -d' ' "${WORK}/platforms" "${WORK}/hashes" | sort >"$2"
-}
-roborev_pairs "${WORK}/roborev_install" "${WORK}/pairs_install"
-roborev_pairs "${WORK}/repackage_section" "${WORK}/pairs_manifest"
-# Non-empty guard first: two empty pair files would diff as a vacuous pass —
-# exactly the silent failure a pin checker must never have.
-if [[ ! -s "${WORK}/pairs_install" || ! -s "${WORK}/pairs_manifest" ]]; then
-  fail "roborev platform/sha256 pairs" "extraction produced no pairs (startup=$(wc -l <"${WORK}/pairs_install" | tr -d ' '), manifest=$(wc -l <"${WORK}/pairs_manifest" | tr -d ' ')) — sed/awk pattern drift?"
-elif diff -q "${WORK}/pairs_install" "${WORK}/pairs_manifest" >/dev/null; then
-  pass "roborev platform/sha256 pairs" "$(wc -l <"${WORK}/pairs_install" | tr -d ' ') pinned pairs match envs/repackage's [build.roborev]"
-else
-  fail "roborev platform/sha256 pairs" "startup script's roborev_install() != envs/repackage's [build.roborev]; diff: $(diff "${WORK}/pairs_install" "${WORK}/pairs_manifest" | tr '\n' ' ')"
+  fail "roborev version" "drift: .rwx/roborev.yml=${PIN:-<missing>}, repackage=${REPACKAGE_VERSION:-<missing>}, floxhub-provision=${PROVISION_VERSION:-<missing>}"
 fi
 
 # 4. Paste-safety of the startup script. Its whole purpose includes being
@@ -179,68 +96,25 @@ else
   fail "uv version" "drift: startup-script=${UV_PIN_V:-<missing>}, prebuilt=${PREBUILT_UV:-<missing>}, floxhub-provision=${PROVISION_UV:-<missing>}"
 fi
 
-# 6. pytest/reflex/ruff/pyright/pyrefly pins (issue #44): single-home pins (no Flox
-# counterpart), so there is nothing to cross-check — the invariant is
-# that they stay EXACT x.y.z pins in the startup script. An empty value
-# or a floating spec (>=, ~=, ^) must fail CI rather than silently float;
-# a pre/post release (e.g. 9.1.1rc1) also fails, forcing a deliberate
-# pin decision instead of an accidental one.
-for pin_name in PYTEST_PIN REFLEX_PIN RUFF_PIN PYRIGHT_PIN PYREFLY_PIN; do
-  pin_value="$(sed -n "s/^${pin_name}=\"\([^\"]*\)\".*/\1/p" "${STARTUP}")"
-  if [[ "${pin_value}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    pass "${pin_name}" "exact pin ${pin_value}"
-  else
-    fail "${pin_name}" "missing or not an exact x.y.z pin: ${pin_value:-<missing>}"
-  fi
-done
-
-# 7. PI_PIN + PI_INTEGRITY + PI_TARBALL_URL (issue #85): all three must
-# be present in the startup script, the integrity must look like the
-# `sha512-<base64>` shape the npm registry emits, and the URL must embed
-# the same PI_PIN (a re-pin that left the URL stale would download a
-# different tarball than the integrity verifies).
-# pi_sri_bytes <base64>: decoded byte count (macOS 12 and older spell the
-# decode flag -D).
-pi_sri_bytes() {
-  { printf '%s' "$1" | base64 -d 2>/dev/null || printf '%s' "$1" | base64 -D 2>/dev/null; } | wc -c | tr -d ' '
-}
-PI_PIN_VALUE="$(sed -n 's/^PI_PIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
-PI_INTEGRITY_VALUE="$(sed -n 's/^PI_INTEGRITY="\([^"]*\)".*/\1/p' "${STARTUP}")"
-PI_TARBALL_URL_VALUE="$(sed -n 's/^PI_TARBALL_URL="\([^"]*\)".*/\1/p' "${STARTUP}")"
-# Literal spot match against '${PI_PIN}' on the left is exactly what this
-# check exists to verify — keep both branches (slash-shape AND literal-
-# variable-shape) because a re-pin could leave the URL in either form.
-# shellcheck disable=SC2016,SC1073
-if [[ -z "${PI_PIN_VALUE}" || -z "${PI_INTEGRITY_VALUE}" || -z "${PI_TARBALL_URL_VALUE}" ]]; then
-  fail "PI_PIN/PI_INTEGRITY/PI_TARBALL_URL" "one or more missing: pin=${PI_PIN_VALUE:-<missing>}, integrity=${PI_INTEGRITY_VALUE:-<missing>}, url=${PI_TARBALL_URL_VALUE:-<missing>}"
-elif ! [[ "${PI_PIN_VALUE}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  fail "PI_PIN" "not an exact x.y.z pin: ${PI_PIN_VALUE}"
-elif ! [[ "${PI_INTEGRITY_VALUE}" =~ ^sha512-[A-Za-z0-9+/=]+$ ]]; then
-  fail "PI_INTEGRITY" "not an sha512 SRI string: ${PI_INTEGRITY_VALUE:0:24}... (expected sha512-<base64>)"
-elif [[ "$(pi_sri_bytes "${PI_INTEGRITY_VALUE#sha512-}")" != 64 ]]; then
-  # Same invariant the startup script's sri_to_hex enforces at runtime: a
-  # shape-valid but truncated pin must fail here, not in a sandbox.
-  fail "PI_INTEGRITY" "does not decode to a 64-byte sha512 digest: ${PI_INTEGRITY_VALUE:0:24}..."
-elif [[ "${PI_TARBALL_URL_VALUE}" != *'${PI_PIN}'* ]] && [[ "${PI_TARBALL_URL_VALUE}" != *"/pi-coding-agent-${PI_PIN_VALUE}.tgz"* ]]; then
-  fail "PI_TARBALL_URL" "does not embed PI_PIN (${PI_PIN_VALUE}); URL=${PI_TARBALL_URL_VALUE} — a re-pin must update both"
+# 6. RESEND_PIN + the per-platform sha256s in resend_install(): exact x.y.z
+# pin, and every sha256 in the stage must be 64-char lowercase hex.
+RESEND_PIN_VALUE="$(sed -n 's/^RESEND_PIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
+if [[ "${RESEND_PIN_VALUE}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  pass "RESEND_PIN" "exact pin ${RESEND_PIN_VALUE}"
 else
-  pass "PI_PIN" "exact pin ${PI_PIN_VALUE}"
-  pass "PI_INTEGRITY" "sha512 SRI pin (${PI_INTEGRITY_VALUE:0:18}...) paired with pi-coding-agent-${PI_PIN_VALUE}.tgz"
+  fail "RESEND_PIN" "missing or not an exact x.y.z pin: ${RESEND_PIN_VALUE:-<missing>}"
 fi
-
-# 8. PI_NODE_MIN + PI_NODE_MIN_PIN (issue #85): the Node floor gating the pi
-# SKIP comes from the pinned package's `engines`, which only a re-pinner can
-# re-read. PI_NODE_MIN must be a major.minor floor, and PI_NODE_MIN_PIN (the
-# pin it was read from) must equal PI_PIN, so a re-pin fails CI until the
-# floor has been revisited.
-PI_NODE_MIN_VALUE="$(sed -n 's/^PI_NODE_MIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
-PI_NODE_MIN_PIN_VALUE="$(sed -n 's/^PI_NODE_MIN_PIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
-if ! [[ "${PI_NODE_MIN_VALUE}" =~ ^[0-9]+\.[0-9]+$ ]]; then
-  fail "PI_NODE_MIN" "not a major.minor Node floor: ${PI_NODE_MIN_VALUE:-<missing>}"
-elif [[ "${PI_NODE_MIN_PIN_VALUE}" != "${PI_PIN_VALUE}" ]]; then
-  fail "PI_NODE_MIN_PIN" "floor was read from pi ${PI_NODE_MIN_PIN_VALUE:-<missing>} but PI_PIN is ${PI_PIN_VALUE:-<missing>} — re-check \`npm view @earendil-works/pi-coding-agent@${PI_PIN_VALUE} engines\` and update both"
+awk '/^resend_install\(\)/,/^}$/' "${STARTUP}" | sed -n 's/^ *sha256="\([^"]*\)".*/\1/p' >"${WORK}/resend_hashes"
+RESEND_BAD=0
+RESEND_N=0
+while read -r h; do
+  RESEND_N=$((RESEND_N + 1))
+  [[ "${h}" =~ ^[0-9a-f]{64}$ ]] || RESEND_BAD=1
+done <"${WORK}/resend_hashes"
+if [[ ${RESEND_N} -ge 3 && ${RESEND_BAD} -eq 0 ]]; then
+  pass "resend sha256" "${RESEND_N} platform hashes, all 64-char hex"
 else
-  pass "PI_NODE_MIN" "Node >=${PI_NODE_MIN_VALUE} (read from pi ${PI_NODE_MIN_PIN_VALUE})"
+  fail "resend sha256" "expected >=3 valid platform hashes, got ${RESEND_N} (bad=${RESEND_BAD})"
 fi
 
 # 9. ENTIRE_PIN + ENTIRE_SHA256_* (issue #91). ENTIRE_PIN must be a
