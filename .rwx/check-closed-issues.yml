@@ -1,7 +1,7 @@
 # Daily: report watched GitHub issues/PRs that closed in the last 24h.
 # The run FAILS when something closed (or a lookup errored); the RWX Slack
 # "run result" org notification (filter: cron runs that fail) delivers it.
-# Watchlist: .rwx/data/watched-issues.json
+# Watchlist: watched-issues.json
 on:
   cron:
     - key: check-closed-issues
@@ -36,4 +36,4 @@ tasks:
       else
         since=$(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ)
       fi
-      python3 scripts/check-closed-issues.py .rwx/data/watched-issues.json "$since"
+      python3 scripts/check-closed-issues.py watched-issues.json "$since"

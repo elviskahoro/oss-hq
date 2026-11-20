@@ -14,6 +14,7 @@
     { "repo": "strawberry-graphql/strawberry", "number": 4740, "why": "Invalid operations fail with a bare AssertionError; U6 (sdk-python-linear#147)" },
     { "repo": "strawberry-graphql/strawberry", "number": 4739, "why": "Enum placement differs by Python version; U9 (sdk-python-linear#147)" },
     { "repo": "strawberry-graphql/strawberry", "number": 4743, "why": "Not blocking: schema descriptions as docstrings (sdk-python-linear#150)" },
-    { "repo": "strawberry-graphql/strawberry", "number": 4741, "why": "Not blocking: custom scalar -> Python type mapping; already fixed in 0.337.1, close-only watch" }
+    { "repo": "strawberry-graphql/strawberry", "number": 4741, "why": "Not blocking: custom scalar -> Python type mapping; already fixed in 0.337.1, close-only watch" },
+    { "repo": "entireio/cli", "number": 3186, "why": "BYOK inference keys (incl. Fireworks) for Entire trail runners; we filed this and want to know when it closes" }
   ]
 }

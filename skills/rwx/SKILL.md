@@ -271,3 +271,5 @@ The article gives no config snippets. For `.rwx/` run definitions use `rwx docs 
 - Configure in the RWX UI: Organization settings → Notifications. Requires the RWX Slack app installed.
 - Settings: event **Run failed**, definition path `.rwx/check-closed-issues.yml`, trigger **Cron** only, destination a Slack channel (human step; cannot be done from the CLI).
 - Verify: with a watched issue closed, `rwx run .rwx/check-closed-issues.yml --wait` should fail and post to the channel.
+
+To track an upstream issue, add it to `watched-issues.json` (see [Tracking upstream issues](../../AGENTS.md#tracking-upstream-issues)); don't open a tracking issue in this repo.
