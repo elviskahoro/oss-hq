@@ -68,6 +68,8 @@ rwx run .rwx/ci.yml --init key=value --title "wip" # init params, run title
 
 For the patch to apply, `git/clone` takes `ref: ${{ init.commit-sha }}` and the `cli` trigger sets `commit-sha: ${{ event.git.sha }}`. A cli-dispatched run starts with an empty workspace, so the definition must clone the repo itself (see the header of `.rwx/gtm-903-consume-published-image.yml`). Edits to `.rwx` files are picked up locally.
 
+Tests run here, not locally: Conductor sandboxes have no pytest, so `python3 -m pytest` fails with `No module named pytest`. Don't install it or skip verification. After exporting the owner's token as `RWX_ACCESS_TOKEN`, run e.g. `rwx run .rwx/test-prompts.yml --wait --fail-fast` (runs the pytest suite and the prompts-drift check); on failure use `rwx logs <task-id>`.
+
 ## Checking CI status
 
 To see what is failing on the current or a given branch, start with `rwx results -h`, then `rwx logs` for the failing task.
