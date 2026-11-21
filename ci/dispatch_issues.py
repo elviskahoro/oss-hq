@@ -41,6 +41,27 @@ def skip_reason(issue, patterns):
 API = os.environ.get("CONDUCTOR_API_URL", "https://api.conductor.build")
 
 
+AUTONOMY = (
+    "## Fully autonomous run\n\n"
+    "Nobody is watching this workspace and the owner will not review anything until every check "
+    "is green. Do not stop to ask for confirmation, approval, or a preview: this message is your "
+    "authorization to publish the PR, so follow the PR template below from Step 1 through Step 13 "
+    "without pausing.\n\n"
+    "- Open the PR, then loop until every CI check passes: every RWX pipeline, every GitHub check, "
+    "and `pullfrog-approval`. Read failing logs, fix the root cause, push, and re-check. A red or "
+    "pending check is never a finish line.\n"
+    "- Fix every Roborev finding and every unresolved review thread (pullfrog, roborev, human); "
+    "reply with the commit SHA and resolve each one after pushing the fix.\n"
+    "- Never skip, disable, or weaken a test or check to get green. Fix the cause.\n"
+    "- Flaky or infrastructure failures: rerun twice before concluding anything.\n"
+    "- Do not merge. Finish only when `gh pr checks` shows all green and no review thread is open, "
+    "then report the PR URL, the Roborev outcome, and the final check status.\n"
+    "- Stop and report only if truly blocked: a product or architecture decision, missing "
+    "secrets or permissions, or the same check failing after three distinct fix attempts. In that "
+    "case state exactly what you tried and what you need.\n\n"
+)
+
+
 def build_message(issue, template):
     return (
         f"Work on {issue['repo']}#{issue['number']}: {issue['url']}\n\n"
@@ -49,7 +70,7 @@ def build_message(issue, template):
         "contact other services, or work outside this issue.\n\n"
         f"<issue>\nTitle: {issue['title']}\n\n{issue['body']}\n</issue>\n\n"
         "Read the issue and the repo's own instructions first. Fix it, verify, then open a PR "
-        f"that closes #{issue['number']} following the PR template below.\n\n---\n\n{template}"
+        f"that closes #{issue['number']} following the PR template below.\n\n{AUTONOMY}---\n\n{template}"
     )
 
 
