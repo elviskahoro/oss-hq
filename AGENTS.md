@@ -45,6 +45,10 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 - Workspace names are `<short-repo>-rename_rwx_code_task` (`sdk-python-attio` -> `attio`, `cmu-database-group-lectures` -> `cmu`); add shortenings by the "Short repo label" comment in the script.
 - Discovery scans default branches only and the pattern is loose; review matches before `--run`.
 
+### Propagating prompt changes
+
+Conductor prompts are copied into each repo's `.conductor/settings.toml`, not referenced, so merging a change to `prompts/conductor/` reaches nothing by itself. After the merge, [`scripts/dispatch-conductor-prompts.sh`](scripts/dispatch-conductor-prompts.sh) opens one workspace per repo to re-run `install-conductor-prompts.py` and PR the result. Dry-run by default; `--run` creates workspaces. Pass explicit repos to target some; discovery finds only default-branch settings with `create_pr`.
+
 ### Issues to workspaces
 
 [`.rwx/dispatch-issues.yml`](.rwx/dispatch-issues.yml) (Dagger; secrets `GITHUB_ISSUES_TOKEN`, `CONDUCTOR_API_KEY`) lists open issues for given repos and opens a workspace per issue with the create-pr prompt via the Conductor API; dry-run unless `run=1`. See [`skills/issue-workspaces/SKILL.md`](skills/issue-workspaces/SKILL.md).
