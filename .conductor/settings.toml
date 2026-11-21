@@ -13,31 +13,13 @@ SETUP_LOG="$HOME/.conductor-setup.log"
 exec >> "$SETUP_LOG" 2>&1
 echo "=== setup started $(date -u +%FT%TZ) ==="
 
-# The single workspace startup script — pinned roborev/rwx, Python
-# 3.11 for this sandbox class (AL2023/Vercel sandboxes ship python3=3.9
-# while pyproject.toml requires >=3.11), rwx auth, roborev config/daemon
-# (reviews on demand with --wait — no background post-commit auto-review
-# hook is installed), and the issue #44 Python dev tools:
-# STARTUP_PY_DEV_TOOLS=1 provisions
-# uv (pinned, checksum-verified release binary) plus pytest, reflex, and ruff
-# (exact-pinned packages in the uv-managed ~/.conductor-pytools
-# venv), all exposed as commands for later agent shells — the Flox
-# manifests' uv is process-scoped and a fresh workspace otherwise has
-# none of the three (python3 -m pytest fails with "No module named
-# pytest"). Runs before sandbox-test.sh so the tools exist before the
-# harness. STARTUP_BEST_EFFORT=1 keeps this repo's former cloud-install
-# contract (the gtm-sdk#702 fallback-installer idiom): a failed TOOL
-# stage (roborev/rwx install, rwx auth, roborev config/daemon) is
-# recorded
-# and summarized but does not fail the workspace. Only a Python 3.11
-# failure on this sandbox class (the stated >=3.11 requirement) or a
-# pytools-stage failure (a requested tool must not leave the workspace
-# looking ready without it, issue #44) exits non-zero, and setup
-# tolerates that exit here and fails at the very end instead (roborev
-# review finding: a provisioning failure must not block the harness
-# findings).
+# The single workspace startup script: pinned rwx (+ auth), infisical, resend,
+# entire, uv, and Python 3.13 for this sandbox class (AL2023 ships python3=3.9).
+# Code-dev tooling (roborev, pytest, reflex, ruff, pyright, pyrefly) runs as
+# RWX tasks, not here (issue #185). Every stage failure is fatal, but setup
+# tolerates the exit here so the harness still runs, and fails at the very end.
 STARTUP_RC=0
-STARTUP_BEST_EFFORT=1 STARTUP_PY_DEV_TOOLS=1 bash scripts/conductor-startup-script-cloud.sh || STARTUP_RC=$?
+bash scripts/conductor-startup-script-cloud.sh || STARTUP_RC=$?
 if [ "$STARTUP_RC" -ne 0 ]; then
   echo "error: conductor-startup-script-cloud.sh failed (exit $STARTUP_RC); continuing setup so the harness still runs, but setup will fail at the end" >&2
 fi
@@ -116,14 +98,8 @@ fi
 
 echo "=== setup finished $(date -u +%FT%TZ) ==="
 
-# Deferred provisioning failure (roborev review finding): a
-# conductor-startup-script-cloud.sh failure earlier in setup must not block
-# the harness above, but it must still fail setup — Python 3.11 is a hard
-# requirement of this workspace (pyproject.toml requires >=3.11), and so is
-# the pytools stage this setup explicitly requests (issue #44: a requested
-# tool that failed to provision must never leave a workspace that appears
-# ready but lacks it). Fail here, after every step has had its chance to
-# run and report.
+# Deferred provisioning failure: a startup-script failure must not block the
+# harness above, but it must still fail setup (every stage is fatal).
 if [ "$STARTUP_RC" -ne 0 ]; then
   echo "error: setup finished with provisioning failures (conductor-startup-script-cloud.sh exit $STARTUP_RC); see $HOME/.conductor-setup.log" >&2
   exit 1
