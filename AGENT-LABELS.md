@@ -16,7 +16,6 @@ mk "status::deferred"    c5def5 "Parked on purpose; revisit date in a comment."
 mk "needs-human"         d93f0b "A person must decide. Agents must not pick up."
 mk "status::blocked-external" 5319e7 "Waiting on something outside the repo (another repo, upstream, a vendor)."
 mk "gas-city"            1d76db "Routed to Gas City. Conductor dispatch must not pick up."
-mk "agent-ready"         0e8a16 "Triaged and safe for an agent to pick up."
 mk "stale-claim"         e99695 "Claim has no recent heartbeat; reclaimable."
 for t in "feat|a2eeef|A new feature." "fix|d73a4a|A bug fix." "docs|0075ca|Documentation only." \
   "refactor|cfd3d7|Code change that neither fixes a bug nor adds a feature." "perf|f9d0c4|Performance improvement." \
@@ -44,18 +43,17 @@ https://github.com/elviskahoro/oss-hq/blob/main/AGENT-LABELS.md
 | `needs-human` | A person must decide. Don't pick up. |
 | `status::blocked-external` | Waiting on something outside the repo (another repo, upstream, a vendor). Say what in a comment. |
 | `gas-city` | Routed to Gas City; Conductor dispatch skips it. |
-| `agent-ready` | Optional: triaged, unblocked, safe to pick up. |
 | `stale-claim` | Claim has no recent heartbeat; reclaimable. |
 
 Open/closed is GitHub's native state. A linked open PR also means "in progress".
 
 Each issue also gets one **type** label named after its [Conventional Commits](https://www.conventionalcommits.org/) type: `type::feat`, `type::fix`, `type::docs`, `type::refactor`, `type::perf`, `type::test`, `type::build`, `type::ci`, `type::chore`, `type::style`, `type::revert`. Type labels never gate pickup.
 
-The owner's repos use only these labels (`status::*`, `needs-human`, `gas-city`, `agent-ready`, `stale-claim`, `type::*`) plus labels that automation writes (Trunk merge queue `trunk-*`, Dependabot `dependencies`/ecosystem labels, bots such as `kilo-*`). Cleaning up other labels is an owner decision, not part of adopting: deleting a label strips it from every issue and PR. When the owner asks, rename `bug`, `enhancement` and `documentation` to `type::fix`, `type::feat` and `type::docs` (a rename keeps them on existing issues) before deleting the rest.
+The owner's repos use only these labels (`status::*`, `needs-human`, `gas-city`, `stale-claim`, `type::*`) plus labels that automation writes (Trunk merge queue `trunk-*`, Dependabot `dependencies`/ecosystem labels, bots such as `kilo-*`). Cleaning up other labels is an owner decision, not part of adopting: deleting a label strips it from every issue and PR. When the owner asks, rename `bug`, `enhancement` and `documentation` to `type::fix`, `type::feat` and `type::docs` (a rename keeps them on existing issues) before deleting the rest.
 
 ## 3. Protocol
 
-1. **Pick.** Open issue with none of `status::*`, `needs-human`, and no linked open PR. Prefer `agent-ready`.
+1. **Pick.** Open issue with none of `status::*`, `needs-human`, and no linked open PR.
    `gh issue list --state open --search '-label:"status::in_progress" -label:"status::blocked" -label:"status::blocked-external" -label:"status::deferred" -label:"needs-human" -label:"gas-city"'`
    Search can't wildcard prefixes, so also reject any candidate whose labels include another `status::` entry. Issues labelled `stale-claim` are also pickable (`gh issue list --state open --label stale-claim`); they no longer carry `status::in_progress`. See step 5 for takeover.
 2. **Claim.** Add `status::in_progress`, then comment `claim: <id> <branch> <UTC time>` as the first line. That comment records the holder; heartbeats must not start with `claim:`.

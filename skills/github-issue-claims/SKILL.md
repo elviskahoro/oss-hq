@@ -21,7 +21,6 @@ Design follows [beads](https://github.com/gastownhall/beads) (claim = status + h
 | `needs-human` | A person must decide. Agents must not pick up. |
 | `status::blocked-external` | Waiting on something outside the repo (another repo, upstream, a vendor). |
 | `gas-city` | Routed to Gas City; Conductor dispatch skips it. |
-| `agent-ready` | Optional: triaged, unblocked, safe to pick up. |
 | `stale-claim` | Set by the reaper when a claim has no recent heartbeat. Claim is reclaimable. |
 | `type::*` | One per issue, named after its Conventional Commits type (`type::feat`, `type::fix`, `type::ci`, ...). Never gates pickup. |
 
@@ -29,7 +28,7 @@ Open/closed is GitHub's native state. A linked open PR also means "in progress".
 
 ## Protocol
 
-1. **Pick.** Open issue, none of `status::*`, `needs-human`, `gas-city`, no linked open PR. Prefer `agent-ready`.
+1. **Pick.** Open issue, none of `status::*`, `needs-human`, `gas-city`, no linked open PR.
 2. **Claim.** Add `status::in_progress`, then comment `claim: <id> <branch> <UTC time>` as the first line (heartbeats must not start with `claim:`).
 3. **Verify.** Re-read the comments. If another claim comment predates yours, the earliest wins (claim comments older than the latest `stale-claim` `labeled` or `status::in_progress` `unlabeled` (release) event are void, see `gh api --paginate repos/{o}/{r}/issues/{n}/timeline`; a timestamp tie goes to the lexicographically smallest id). Losers remove nothing and pick another issue. Re-claiming with your own id is success. Best-effort: timestamps have 1-second resolution.
 4. **Heartbeat.** Comment about every 15 minutes (the reaper's threshold is 48h). Before each, confirm `status::in_progress` is still there and your claim comment is still the winning, non-void claim; if not, stop.
