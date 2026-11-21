@@ -1,0 +1,47 @@
+# Flags agent claims with no heartbeat for 48h (and no open PR) as `stale-claim`, across
+# every elviskahoro/* and SanhedrinTech/* repo. Rules: ci/stale_claim_sweeper.py and
+# AGENT-LABELS.md step 5. Runs every 6 hours (dry run until the cron's apply flag is flipped); on demand:
+#   rwx run .rwx/stale-claim-sweeper.yml --wait            # prints what it would flag
+#   rwx run .rwx/stale-claim-sweeper.yml --init apply=1 --wait
+# Secret: GITHUB_ISSUES_WRITE_TOKEN, with issues:write on every repo in both owners. The read-only
+# GITHUB_ISSUES_TOKEN used by dispatch-issues.yml cannot write.
+on:
+  cron:
+    - key: stale-claim-sweeper
+      schedule: '0 */6 * * *'
+      init:
+        commit-sha: ${{ event.git.sha }}
+        apply: "0"  # flip to "1" after a successful manual `--init apply=1` run
+  cli:
+    init:
+      commit-sha: ${{ event.git.sha }}
+      apply: "0"
+
+concurrency-pools:
+  - id: elviskahoro/oss-hq:stale-claim-sweeper
+    capacity: 1
+    on-overflow: cancel-waiting
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.4.1
+    with:
+      repository: https://github.com/elviskahoro/oss-hq.git
+      ref: ${{ init.commit-sha }}
+
+  - key: sweep
+    use: code
+    cache: false
+    timeout: 10m
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_ISSUES_WRITE_TOKEN }}
+      APPLY: ${{ init.apply }}
+    run: |
+      set -euo pipefail
+      flag=""
+      [ "$APPLY" = "1" ] && flag="--apply"
+      python3 ci/stale_claim_sweeper.py $flag
