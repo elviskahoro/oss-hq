@@ -613,10 +613,42 @@ rwx_auth() {
   return 0
 }
 
+# --- prerequisites -----------------------------------------------------------
+# Every pinned CLI ships as a .tar.gz, but bare AL2023 images omit tar/gzip.
+# Install them via dnf when root or passwordless sudo allows (same gating as
+# python313_stage); otherwise say so plainly, since the stage errors that
+# follow ("tarball did not yield an executable") would hide the real cause.
+ensure_archive_tools() {
+  if command -v tar >/dev/null 2>&1 && command -v gzip >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ "$(uname -s)" != "Linux" ]] || ! command -v dnf >/dev/null 2>&1; then
+    log "error: tar/gzip missing and no dnf to install them; install them and re-run setup"
+    return 1
+  fi
+  local sudo_cmd=""
+  if [[ "$(id -u)" != 0 ]]; then
+    if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+      sudo_cmd="sudo"
+    else
+      log "error: tar/gzip missing and no root or passwordless sudo to dnf-install them"
+      return 1
+    fi
+  fi
+  log "installing tar and gzip (missing on this image)"
+  if ! ${sudo_cmd} dnf install -y tar gzip; then
+    log "error: dnf install tar gzip failed"
+    return 1
+  fi
+  hash -r 2>/dev/null || true
+}
+
 # --- run -------------------------------------------------------------------
 # Every stage failure is fatal: a missing sandbox CLI fails setup loudly, but
 # every stage still runs and reports before the deferred exit (issue #185).
 log "host: $(uname -srm), user: $(id -un), pwd: $(pwd)"
+
+if ensure_archive_tools; then :; else record FAIL prereqs "tar/gzip unavailable — see messages above"; FAILED=1; fi
 
 if rwx_install; then :; else record FAIL rwx "provisioning failed — see messages above"; FAILED=1; fi
 if infisical_install; then :; else record FAIL infisical "provisioning failed — see messages above"; FAILED=1; fi
