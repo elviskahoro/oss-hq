@@ -296,6 +296,9 @@ Closes #NNN
 ## Roborev
 <Required, never drop. One of: "clean after N fix rounds", "unavailable (reason)" or "findings remain (N)". The last two are not a clean review and need explicit user acceptance before publishing. List any findings the user accepted.>
 
+## Checks
+<Required, never drop. Filled in after Step 13: "all green (gh pr checks <n>)" or the pending/failing checks and why. Never "none yet": watch until they report.>
+
 ## Links
 - Linear: [TEAM-NNN](https://linear.app/...)
 - Spec: design/backlog-...-spec-01.md
@@ -312,6 +315,7 @@ Section guidance:
 | Risks | When the change has non-trivial blast radius | Docs, comments, isolated refactors with coverage |
 | Test plan | When testing required judgment calls | Small changes with full unit coverage |
 | Roborev | Always | Never. Report the Step 5 outcome. |
+| Checks | Always | Never. Report the Step 13 outcome. |
 | Links | If any upstream artifact exists | True greenfield work with no ticket, spec, or predecessor PR |
 
 ### Step 8: Show a preview when requested
@@ -452,7 +456,7 @@ Threads from roborev and humans must not stay open once the issue they raise is 
 
 ### Step 13: Watch CI and fix failures until green, then report status
 
-Merging is never automatic, but getting the checks green is part of creating the PR — don't hand back a PR with red or pending CI and wait to be told to fix it. **Loop until every RWX pipeline passes**, and until `pullfrog-approval` passes: no stopping after one green run or one fix. After the PR is open, loop:
+Always watch the checks yourself; never ask the user whether to run `gh pr checks --watch`, and never report "no checks yet" as a stopping point. Merging is never automatic, but getting the checks green is part of creating the PR — don't hand back a PR with red or pending CI and wait to be told to fix it. **Loop until every RWX pipeline passes**, and until `pullfrog-approval` passes: no stopping after one green run or one fix. After the PR is open, loop:
 
 1. Wait for checks with `gh pr checks <pr-number> --watch --fail-fast` (or poll `gh pr checks <pr-number>` every 30–60s if `--watch` is unavailable). Treat "no checks reported yet" right after pushing as pending and retry for a couple of minutes before concluding there are none.
 2. If an RWX pipeline fails (`rwx results`, `rwx logs`; see `skills/rwx/SKILL.md`, and export the token matching the repo owner first), fix the root cause, re-run it with `rwx run .rwx/<file>.yml --wait --fail-fast`, and repeat until it is green; push the fix. If `pullfrog-approval` fails, don't rerun it or hunt through logs: follow "Fixing `pullfrog-approval`" above, Steps A to G (fix every thread, push, resolve, and comment `@pullfrog` only if it isn't already running). A local commit does not count; an unpushed fix leaves the check failing. For any other failing check, read the failing logs (`gh run view <run-id> --log-failed`), reproduce locally where possible, fix the root cause, run the relevant local tests, commit, and push. The branch is now published: prefer follow-up commits, but amending or rebasing is fine when it gives a cleaner history; push rewrites with `--force-with-lease` without asking. Rerun `rwx run .rwx/roborev.yml --wait` if the fix is non-trivial (a failed or missing run is `unavailable (reason)`: ask the user, never skip silently).
