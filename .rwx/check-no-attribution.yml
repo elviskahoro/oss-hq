@@ -11,8 +11,8 @@ on:
       actions: [opened, reopened, synchronize, edited]
       init:
         commit-sha: ${{ event.git.sha }}
-        base-ref: ${{ event.github.pull_request.base.ref }}
-        pr-body: ${{ event.github.pull_request.body }}
+        base-ref: ${{ event.github.pull_request.pull_request.base.ref }}
+        pr-body: ${{ event.github.pull_request.pull_request.body }}
 
 base:
   image: ubuntu:24.04
