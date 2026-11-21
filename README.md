@@ -118,11 +118,11 @@ each project. When people copy instructions by hand, the copies drift, and
 one project quietly keeps last month's advice. An automated check catches a
 stale copy before an agent follows it.
 
-### Heavy pieces are opt-in
+### Code-dev tooling runs on RWX
 
-Not every project needs the Python tooling, the issue syncing, or the private
-package catalog. Those pieces exist, but they stay off until a project asks
-for them. Adding the setup to a project that doesn't need them should cost
+The startup script provisions only the sandbox CLIs (rwx, infisical, resend,
+entire, uv, Python 3.13). Code-dev tooling such as pytest, ruff, and roborev
+runs through RWX tasks instead of being installed in workspaces. Adding the setup to a project that doesn't need them should cost
 nothing.
 
 ### Secrets stay out of the repo
@@ -158,8 +158,8 @@ These tools aren't steps in the flow, but they keep it running smoothly:
 - **[Flox](https://flox.dev)** resolves one manifest into one lock file, so
   your laptop, CI, and every agent's sandbox run exactly the same software,
   built from prebuilt packages instead of compiled on a fragile machine.
-- **uv, pytest, Reflex, and ruff** are the Python essentials, for projects that want
-  them.
+- **uv** is the one Python tool provisioned in sandboxes; pytest, ruff, and the
+  rest run through RWX tasks.
 
 ## Where to go next
 

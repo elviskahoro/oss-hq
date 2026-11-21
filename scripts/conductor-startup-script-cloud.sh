@@ -105,7 +105,7 @@ note_placement() {
 
 # install_bin <src> <name>: place a file as an executable under
 # /usr/local/bin (the convention this repo's setup already uses for
-# roborev/infisical) when root or passwordless sudo allows it,
+# rwx/infisical) when root or passwordless sudo allows it,
 # else under ~/.local/bin. Echoes the installed path on success (nothing on
 # failure).
 install_bin() {
@@ -259,7 +259,7 @@ rwx_install() {
 # documented fallback). Both URLs publish byte-identical tarballs with the
 # same sha256, so picking the CDN keeps the script pinned to the same artifact
 # the CLI's official installer would pin to. Pins update the same way as
-# roborev/rwx: new pin + hand-hashed per-platform sha256 (no checksum file
+# rwx: new pin + hand-hashed per-platform sha256 (no checksum file
 # is published alongside the release).
 #
 # Like the other tools in this script, this stage NEVER auto-runs
@@ -376,7 +376,7 @@ uv_install() {
     return 1
   fi
   # Asset names are uv-<arch>-<vendor>-<os>.tar.gz (uv's own naming, NOT
-  # the os-arch triple roborev/rwx use); each extracts into a directory of
+  # the os-arch triple rwx uses); each extracts into a directory of
   # the same name containing ./uv.
   local asset sha256 dir path
   case "$(uname -s)-$(uname -m)" in

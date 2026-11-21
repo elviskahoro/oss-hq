@@ -8,7 +8,7 @@
 #   4. startup-script paste-safety (no triple-quotes / line-continuations)
 #   5. uv: UV_PIN == envs/prebuilt == envs/floxhub-provision uv.version
 #   6. RESEND_PIN exact x.y.z + hex-64 sha256s
-#   9. ENTIRE_PIN (issue #91): exactly x.y.z, like pi's pin shape. The four
+#   9. ENTIRE_PIN (issue #91): exactly x.y.z, like RESEND_PIN's shape. The four
 #      ENTIRE_SHA256_<platform> constants must all be present and hex-64; a
 #      missing constant makes the runtime install fail closed on that
 #      platform, so the CI check is presence-and-shape, not cross-check.
@@ -17,7 +17,7 @@
 # (conductor-cloud-install.sh vs conductor-startup-script.sh, before they
 # merged into the single startup script) died with that merge: one file is
 # now the only in-repo pin home. The remaining sync surfaces are the Flox
-# manifests (checks 1-2, 5). (gtm-sdk's
+# manifests (checks 1, 5). (gtm-sdk's
 # former conductor-workspace-setup.sh sibling died with that repo's
 # retirement of the script, gtm-sdk#944 — nothing to sync there anymore.)
 #
@@ -118,7 +118,7 @@ else
 fi
 
 # 9. ENTIRE_PIN + ENTIRE_SHA256_* (issue #91). ENTIRE_PIN must be a
-# non-floating x.y.z, exactly like pi's. The four per-platform SHA256
+# non-floating x.y.z, exactly like RESEND_PIN. The four per-platform SHA256
 # constants must each be present and a 64-char lowercase hex string — the
 # runtime install fails closed on any missing entry, so the CI check just
 # catches that case earlier, before a sandbox sees it. The tarball URL is

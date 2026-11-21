@@ -1,6 +1,6 @@
 ---
 name: run-startup-script-tests
-description: Use when you need to run or verify scripts/conductor-startup-script-cloud-test.sh (the container test for conductor-startup-script-cloud.sh), e.g. after changing pins, the roborev model, or the Pi install path. Covers the Colima Docker setup on macOS and what CI runs.
+description: Use when you need to run or verify scripts/conductor-startup-script-cloud-test.sh (the container test for conductor-startup-script-cloud.sh), e.g. after changing pins or the install paths for the sandbox CLIs. Covers the Colima Docker setup on macOS and what CI runs.
 ---
 
 # Running the startup-script container test
@@ -32,7 +32,7 @@ Do not assume Docker Desktop is available. Stop the VM with `colima stop` when d
 
 ## Run it
 
-Same command CI uses (`.github/workflows/conductor-startup-script-cloud.yml`):
+Same command CI uses (`.rwx/conductor-startup-script-cloud.yml`):
 
 ```bash
 docker run --platform linux/amd64 --rm \
@@ -46,5 +46,5 @@ The test exits non-zero on the first broken assertion; the last lines say which.
 
 - **No qemu emulation (issue #92).** The test aborts with `running under qemu-... emulation` because the pinned Go binaries crash or hang under it. On an Apple Silicon Colima VM, `--platform linux/amd64` is emulated, so it will hit this guard. Either start Colima with an x86_64 VM (`colima start --arch x86_64`, itself emulated, so likely the same guard) or drop `--platform` to run natively on arm64. Prefer apple/container above, which is verified native arm64; if that fails for a script reason, rely on CI.
 - **CI is the authoritative run** (x86_64 runner). Check it with `gh pr checks <PR>`.
-- Also run `bash scripts/validate-pins.sh` on the host; it needs no container and checks the Pi/roborev pins and integrity hashes.
-- After a pin bump, take `PI_INTEGRITY` from `npm view @earendil-works/pi-coding-agent@<ver> dist.integrity` verbatim; never retype it.
+- Also run `bash scripts/validate-pins.sh` on the host; it needs no container and checks the startup script's pins and sha256s plus the roborev pin against the Flox manifests.
+- After a pin bump, copy the new per-platform sha256s from the release's checksums verbatim; never retype them.
