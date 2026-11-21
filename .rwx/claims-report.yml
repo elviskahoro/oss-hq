@@ -1,0 +1,33 @@
+# Weekly label-hygiene report across elviskahoro/*, SanhedrinTech/* and Marchili/*: claims with no
+# open PR, and open issues with no type::* label. Read-only. The run FAILS when anything is listed;
+# the RWX run-result notification (cron runs that fail) delivers it, and the task log has the Markdown.
+# On demand: rwx run .rwx/claims-report.yml --wait
+# Secret: GITHUB_ISSUES_TOKEN (read access to issues on every repo in all three owners).
+on:
+  cron:
+    - key: weekly-claims-report
+      schedule: '0 14 * * 1' # Mondays 14:00 UTC
+      init:
+        commit-sha: ${{ event.git.sha }}
+  cli:
+    init:
+      commit-sha: ${{ event.git.sha }}
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.4.1
+    with:
+      repository: https://github.com/elviskahoro/oss-hq.git
+      ref: ${{ init.commit-sha }}
+
+  - key: report
+    use: code
+    cache: false
+    timeout: 10m
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_ISSUES_TOKEN }}
+    run: python3 ci/claims_report.py
