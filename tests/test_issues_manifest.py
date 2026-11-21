@@ -57,7 +57,7 @@ def test_skip_reason_matches_exact_and_prefix():
     assert di.skip_reason({"author_association": "OWNER", "labels": ["status::blocked"]}, pats) == "status::blocked"
     assert di.skip_reason({"author_association": "OWNER", "labels": ["gas-city"]}, pats) == "gas-city"
     assert di.skip_reason({"author_association": "OWNER", "labels": ["status::some-future-state"]}, pats) == "status::some-future-state"
-    assert di.skip_reason({"author_association": "OWNER", "labels": ["type::fix", "agent-ready"]}, pats) is None
+    assert di.skip_reason({"author_association": "OWNER", "labels": ["type::fix"]}, pats) is None
     assert di.skip_reason({"author_association": "OWNER", "labels": []}, pats) is None
 
 

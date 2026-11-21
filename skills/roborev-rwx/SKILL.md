@@ -18,4 +18,4 @@ It must match gtm-sdk's `.rwx/roborev.yml` (elviskahoro/gtm-sdk#1428); only the 
 
 ## Bump pins
 
-Change `ROBOREV_VERSION` / `PI_VERSION` in the pipeline, `ROBOREV_PIN` / `PI_PIN` in the startup script, and the Flox manifests together; `scripts/validate-pins.sh` fails CI on drift. Re-check the pipeline's `node-version` against pi's `engines`.
+Change `ROBOREV_VERSION` / `PI_VERSION` in the pipeline and the roborev pin in the Flox manifests together; `scripts/validate-pins.sh` fails CI on roborev drift (the startup script no longer pins roborev or pi). Re-check the pipeline's `node-version` against pi's `engines` by hand: CI no longer enforces it.

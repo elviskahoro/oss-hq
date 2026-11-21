@@ -60,3 +60,15 @@ path = "tests.test_trunk_lint_file_beads"
 depends_on = []
 depends_on_external = ["pytest", "typer"]
 visibility = []
+
+[[modules]]
+path = "tests.test_issues_manifest"
+depends_on = []
+depends_on_external = ["pytest"]
+visibility = []
+
+[[modules]]
+path = "tests.test_stale_claim_sweeper"
+depends_on = []
+depends_on_external = []
+visibility = []
