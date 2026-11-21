@@ -34,7 +34,7 @@ def issue(
         "number": 1,
         "repository": {"nameWithOwner": "o/r"},
         "timelineItems": {"nodes": labels},
-        "comments": {"nodes": [{"createdAt": ts(comment)}] if comment is not None else []},
+        "comments": {"nodes": [{"createdAt": ts(comment), "body": "hi"}] if comment is not None else []},
         "linkedBranches": {
             "nodes": [{"ref": {"target": {"committedDate": ts(commit)}}}] if commit is not None else []
         },
@@ -101,3 +101,9 @@ def test_mark_stale_raises_on_other_delete_errors(monkeypatch: Any) -> None:
     except _MOD.urllib.error.HTTPError:
         return
     raise AssertionError("expected HTTPError")
+
+
+def test_sweepers_own_comment_is_not_a_heartbeat() -> None:
+    own = issue(claimed=100)
+    own["comments"]["nodes"] = [{"createdAt": ts(1), "body": f"{_MOD.MARKER}\nNo activity since"}]
+    assert _MOD.is_stale(own, NOW)

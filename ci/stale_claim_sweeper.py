@@ -6,8 +6,8 @@ A stale claim is swapped from `status::in_progress` to `stale-claim` (so gh-dash
 and gets one explanatory comment.
 
 Heartbeat = latest of: the moment `status::in_progress` was applied, the newest comment, and the
-newest commit on any branch linked to the issue. Label edits and reactions do not count.
-Limits: only the last 50 label events and first 10 linked branches are read; an issue whose claim
+newest commit on any branch linked to the issue. Label edits, reactions and the sweeper's own comments do not count.
+Limits: only the last 50 label events, last 20 comments and first 10 linked branches are read; an issue whose claim
 event falls outside that window with no comments is treated as undatable and never flagged.
 Race: activity landing between the fetch and the label swap is not seen; the posted comment tells the
 claimant how to take the claim back.
@@ -30,6 +30,7 @@ OWNERS = ("elviskahoro", "SanhedrinTech")
 CLAIM_LABEL = "status::in_progress"
 STALE_LABEL = "stale-claim"
 STALE_HOURS = 48
+MARKER = "<!-- stale-claim-sweeper -->"  # tags our own comments so they never count as heartbeats
 
 API = "https://api.github.com"
 
@@ -42,7 +43,7 @@ query($q: String!, $cursor: String) {
         number
         url
         repository { nameWithOwner }
-        comments(last: 1) { nodes { createdAt } }
+        comments(last: 20) { nodes { createdAt body } }
         timelineItems(last: 50, itemTypes: [LABELED_EVENT]) {
           nodes { ... on LabeledEvent { createdAt label { name } } }
         }
@@ -70,6 +71,8 @@ def heartbeat(issue: dict[str, Any]) -> datetime | None:
         if event and event.get("label", {}).get("name") == CLAIM_LABEL:
             stamps.append(parse_ts(event["createdAt"]))
     for comment in issue["comments"]["nodes"]:
+        if MARKER in comment.get("body", ""):
+            continue
         stamps.append(parse_ts(comment["createdAt"]))
     for branch in issue["linkedBranches"]["nodes"]:
         target = ((branch or {}).get("ref") or {}).get("target") or {}
@@ -129,7 +132,7 @@ def mark_stale(issue: dict[str, Any], beat: datetime, token: str) -> None:
         token,
         {
             "body": (
-                f"No activity since {beat:%Y-%m-%d %H:%M} UTC (over {STALE_HOURS}h) and no open PR "
+                f"{MARKER}\nNo activity since {beat:%Y-%m-%d %H:%M} UTC (over {STALE_HOURS}h) and no open PR "
                 f"closes this issue. Swapped `{CLAIM_LABEL}` for `{STALE_LABEL}`: it is reclaimable. "
                 f"If the previous claimant is still working, re-add `{CLAIM_LABEL}`, remove "
                 f"`{STALE_LABEL}`, and comment."
