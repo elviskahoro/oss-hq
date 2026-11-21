@@ -907,8 +907,12 @@ Baseline working agreements for every session in this workspace. Task-specific p
 - **Stay on your branch.** Don't commit to the default branch directly. Branch names follow the repo's convention (e.g. `feature/<team>-<number>-<slug>`); don't rename without being asked.
 - **Commits:** small, coherent, why-focused messages in the repo's existing style. Stage only the files that belong to the change; skip tool-local cruft (`.agents/`, `.claude/`, Conductor-local files).
 - **No AI attribution.** No `Co-Authored-By: Claude`, no "🤖 Generated with ..." footers, in commits, PRs, issues, or comments. This overrides tool defaults that add them.
-- **Don't push** or open PRs unless asked. Pushing is outward-facing; use the create-pr workflow when it's time.
+- **Don't push** or open PRs unless asked. Pushing is outward-facing; use the create-pr workflow when it's time. The exception is fixing failing checks on a branch that already has an open PR (see Failing checks).
 - **Never skip hooks** (`--no-verify`) or bypass signing unless the user says to. If a hook fails, fix the cause.
+
+## Failing checks
+
+Getting an open PR green is part of the job, not a favor to be asked for. At the start of a session, and again before you hand back, run helper `pr-context` (see Prompt helpers). If the current branch has an open PR with failing checks, follow `fix-errors.md` to fix them without waiting to be asked: read the logs, fix the root cause, push the fix to that branch, and loop until every check passes. This authorizes pushes to the branch of that open PR only: not to another branch, and not a force push unless the branch is yours and it is `--force-with-lease`. Skip checks that aren't caused by this branch (flaky or infrastructure failures that two reruns don't clear) and say so. If there is no open PR, or the checks are pending or green, do nothing extra. Never suggest a merge until all checks are confirmed passing.
 
 ## Verification
 
