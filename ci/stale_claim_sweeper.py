@@ -26,7 +26,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-OWNERS = ("elviskahoro", "SanhedrinTech")
+OWNERS = ("elviskahoro", "SanhedrinTech", "Marchili")
 CLAIM_LABEL = "status::in_progress"
 STALE_LABEL = "stale-claim"
 STALE_HOURS = 48
