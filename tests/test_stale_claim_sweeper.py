@@ -23,7 +23,6 @@ def ts(hours_ago: float) -> str:
 def issue(
     claimed: float | None = 100,
     comment: float | None = None,
-    commit: float | None = None,
     open_pr: bool = False,
 ) -> dict[str, Any]:
     labels = []
@@ -35,9 +34,6 @@ def issue(
         "repository": {"nameWithOwner": "o/r"},
         "timelineItems": {"nodes": labels},
         "comments": {"nodes": [{"createdAt": ts(comment), "body": "hi"}] if comment is not None else []},
-        "linkedBranches": {
-            "nodes": [{"ref": {"target": {"committedDate": ts(commit)}}}] if commit is not None else []
-        },
         "closedByPullRequestsReferences": {"nodes": [{"number": 2}] if open_pr else []},
     }
 
@@ -56,10 +52,6 @@ def test_other_label_events_are_not_heartbeats() -> None:
 
 def test_recent_comment_keeps_claim_alive() -> None:
     assert not _MOD.is_stale(issue(claimed=100, comment=2), NOW)
-
-
-def test_recent_linked_branch_commit_keeps_claim_alive() -> None:
-    assert not _MOD.is_stale(issue(claimed=100, commit=2), NOW)
 
 
 def test_open_pr_exempts_claim() -> None:

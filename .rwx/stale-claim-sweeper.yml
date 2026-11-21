@@ -33,13 +33,8 @@ tasks:
       repository: https://github.com/elviskahoro/oss-hq.git
       ref: ${{ init.commit-sha }}
 
-  - key: uv
-    run: |
-      curl -LsSf https://astral.sh/uv/install.sh | sh
-      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
-
   - key: sweep
-    use: [code, uv]
+    use: code
     cache: false
     timeout: 10m
     env:
@@ -49,4 +44,4 @@ tasks:
       set -euo pipefail
       flag=""
       [ "$APPLY" = "1" ] && flag="--apply"
-      uv run --no-project python ci/stale_claim_sweeper.py $flag
+      python3 ci/stale_claim_sweeper.py $flag
