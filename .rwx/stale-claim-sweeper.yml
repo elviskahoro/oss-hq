@@ -1,6 +1,6 @@
 # Flags agent claims with no heartbeat for 48h (and no open PR) as `stale-claim`, across
 # every elviskahoro/* and SanhedrinTech/* repo. Rules: ci/stale_claim_sweeper.py and
-# AGENT-LABELS.md step 5. Runs every 6 hours (dry run until the cron's apply flag is flipped); on demand:
+# AGENT-LABELS.md step 5. Runs every 6 hours (writes; set the cron apply flag to "0" for a dry run); on demand:
 #   rwx run .rwx/stale-claim-sweeper.yml --wait            # prints what it would flag
 #   rwx run .rwx/stale-claim-sweeper.yml --init apply=1 --wait
 # Secret: GITHUB_ISSUES_WRITE_TOKEN, with issues:write on every repo in both owners. The read-only
@@ -11,7 +11,7 @@ on:
       schedule: '0 */6 * * *'
       init:
         commit-sha: ${{ event.git.sha }}
-        apply: "0"  # flip to "1" after a successful manual `--init apply=1` run
+        apply: "1"
   cli:
     init:
       commit-sha: ${{ event.git.sha }}
