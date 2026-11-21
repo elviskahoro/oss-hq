@@ -46,7 +46,7 @@ Classify each error before touching code:
 | --- | --- | --- |
 | **Caused by this branch** | Fails on the branch, passes on `main` | Fix it. |
 | **Pre-existing on base** | Also fails on `main` / unrelated files, or a reviewer (e.g. Pullfrog) flags it as pre-existing | Don't fix unless the user asks. File a GitHub issue (see below), then report it. |
-| **`pullfrog-approval` failing** | Check red, or still pending after your push | Never flaky or needs-decision. Skip the log hunt and the check rerun; follow "Pullfrog approval" below. |
+| **`pullfrog-approval` failing** | Check red, or still pending after your push | Never flaky or needs-decision. Skip the log hunt and the check rerun; follow "Fixing `pullfrog-approval`" below. |
 | **Flaky / infra** | Timeout, network error, runner crash, passes on rerun | Rerun once (`gh run rerun <run-id> --failed`); if it passes, report it as flaky. Don't "fix" code for a flake. |
 | **Needs a decision** | Fix requires changing a public interface, a product behavior, or a test's intended expectation | Stop and ask. |
 | **Needs access you lack** | Missing secret, permission, or external service | Say exactly what's missing; don't work around it. |
@@ -127,28 +127,56 @@ git push
 
 - If the push is rejected as non-fast-forward, `git fetch` and rebase/merge per the repo's convention, re-verify (Step 7), then push (`--force-with-lease` is pre-approved if history was rewritten: push without asking) — surface any conflicts to the user rather than resolving them silently.
 - If the branch has no upstream and no PR, don't create one; report the fix is committed locally and let the user decide on create-pr.
-- After pushing, check status once with `gh pr checks`. Don't poll in a loop: if checks are still running, say so and stop; the user can press the button again. Exception: `pullfrog-approval` is not done until you have re-triggered pullfrog (below).
+- After pushing, check status once with `gh pr checks`. Don't poll in a loop: if checks are still running, say so and stop; the user can press the button again. Exception: `pullfrog-approval` is not done until you have completed "Fixing `pullfrog-approval`" (below).
 
-### Pullfrog approval: fix, push, resolve, rerun
+### Fixing `pullfrog-approval` (follow every step, in order)
 
-`pullfrog-approval` is a gate, not a test: it is red or pending while pullfrog has unresolved review threads on the PR, or hasn't re-reviewed the latest push. Logs say nothing useful and rerunning the check does nothing. Do all of this without being told, in order:
+`pullfrog-approval` is a gate, not a test. It stays red or pending while pullfrog has **unresolved review threads** on the PR or hasn't re-reviewed your latest push. Its logs say nothing useful, and rerunning the check does nothing. Do all of this without being told. Get `<owner>/<repo>` from `gh repo view --json nameWithOwner` and `<pr-number>` from `gh pr view --json number`.
 
-1. List the unresolved threads (command below). Each is a finding to fix; treat every one as in scope, including nits. Exception: a comment that flags a pre-existing issue follows the triage table (file or link an issue, reply on the thread, resolve it); report the check as blocked by it rather than looping.
-2. Fix the code for each thread. Don't resolve first; resolving without fixing is forbidden.
-3. Run the relevant tests, commit, and `git push`. Pullfrog only reviews pushed commits, and pushing to an open PR needs no approval.
-4. For each addressed thread, reply with the commit SHA and resolve it (below). Resolving the last open pullfrog thread or pushing a new commit retriggers pullfrog on its own.
-5. Wait about a minute, then run `gh pr checks <pr-number>` and list threads again. If `pullfrog-approval` is pending or its run is in progress (`gh pr checks`, `gh run list --workflow pullfrog`), pullfrog is already running: do NOT comment `@pullfrog`; wait and re-check every minute or two. Re-running pullfrog is always done by this comment, never `gh run rerun` or the check's re-run button. Only if it is red or stale (no run in progress, no new comments, latest push not re-reviewed) request a re-review once: `gh pr comment <pr-number> --body "@pullfrog"`.
-6. If pullfrog left new comments, repeat from 1. Never report fixed while `pullfrog-approval` is failing or pending; if it is still not green after three rounds, report the open threads and what you tried.
+**Step A. List the unresolved threads.** Each one is a finding to fix, nits included.
 
-### Resolve review comments you have addressed
+```bash
+gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:20){nodes{author{login} body}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number> --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved|not) | select(.comments.nodes[0].author.login | test("pullfrog")) | {id,path,line,isOutdated,comments:[.comments.nodes[]|{who:.author.login,body}]}'
+```
 
-Review threads (especially from `pullfrog`, also roborev and humans) must not be left open once the issue they raise is fixed. After the fix is pushed:
+Drop the `select(... "pullfrog")` filter to also see roborev and human threads. Also read the top-level review body (`gh pr view --json reviews`): pullfrog sometimes puts a finding there instead of inline. Write down each thread's id, file, line, and what it asks for.
 
-- List unresolved threads (id, file, line, and the full comment text, since the first comment holds the finding and later ones may narrow it). Add `| select(.comments.nodes[0].author.login | test("pullfrog"))` before `| {id` to see only pullfrog's (command on the next line).
-  `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:20){nodes{author{login} body}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr-number> --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved|not) | {id,path,line,isOutdated,comments:[.comments.nodes[]|{who:.author.login,body}]}'`
-  Get `<owner>/<repo>` from `gh repo view --json nameWithOwner`, and `<pr-number>` from `gh pr view --json number`. Also read the top-level review body (`gh pr view --json reviews`): pullfrog sometimes puts a finding there instead of inline.
-- For each thread whose concern is actually resolved by a pushed commit, reply briefly with the commit SHA, then resolve it: `gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<thread-id>`
-- Leave a thread open, with a reply explaining why, if the concern was declined, deferred, or only partly fixed. Never resolve a thread whose issue is still present.
+**Step B. Read each comment fully, then fix the code.** Read the first comment and every later reply (later ones may narrow the finding). If the comment contains a code suggestion (a ```` ```suggestion ```` block or a described change), apply it, or an equivalent fix if the suggestion is wrong, in the named file and line. Open the file; don't fix from the comment text alone. A comment that flags a *pre-existing* issue follows the triage table instead (file or link an issue, reply on the thread with the link, resolve it) and you report the check as blocked by it. Never resolve a thread before its fix exists.
+
+**Step C. Test, commit, push.** Run the relevant tests, commit, and `git push`. Pullfrog only sees pushed commits, a local commit changes nothing, and pushing to an open PR needs no approval.
+
+**Step D. Reply and resolve every addressed thread.** Reply with the commit SHA, then resolve:
+
+```bash
+gh api graphql -f query='mutation($id:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$b}){comment{id}}}' -f id=<thread-id> -f b="Fixed in <sha>."
+gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<thread-id>
+```
+
+Leave a thread open, with a reply explaining why, only if the concern was declined, deferred, or partly fixed. Never resolve a thread whose issue is still present.
+
+**Step E. Check whether pullfrog is already running.** Wait about a minute, then run `gh pr checks <pr-number>` and `gh run list --workflow pullfrog --limit 3`. Pushing a commit or resolving the last open pullfrog thread normally retriggers pullfrog on its own. If a run is in progress or the check is pending, **do nothing and wait**; re-check every minute or two.
+
+**Step F. Trigger a rerun by commenting, only if needed.** If the check is still red or stale (no run in progress, no new comments, latest push not re-reviewed), request a re-review once:
+
+```bash
+gh pr comment <pr-number> --body "@pullfrog"
+```
+
+This comment is the only way to rerun pullfrog.
+
+**Step G. Re-check and loop.** After the rerun finishes, run `gh pr checks <pr-number>` and list threads again (Step A). If pullfrog left new comments, repeat from Step A. Done only when `pullfrog-approval` is green and no addressed thread is still open. If it is not green after three rounds, report the open threads and what you tried.
+
+Do not:
+
+- Resolve a thread without fixing it, or fix without pushing.
+- Use `gh run rerun` or the check's re-run button for pullfrog.
+- Comment `@pullfrog` while a pullfrog run is in progress.
+- Hunt through the check's logs.
+- Report "fixed" while `pullfrog-approval` is failing or pending.
+
+### Other review threads
+
+Threads from roborev and humans must not stay open once the issue they raise is fixed. After pushing, reply with the commit SHA and resolve them with the mutation in Step D. Use the Step A query without the pullfrog filter to find them.
 
 ### Step 11: Report
 
