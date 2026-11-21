@@ -45,6 +45,10 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 - Workspace names are `<short-repo>-rename_rwx_code_task` (`sdk-python-attio` -> `attio`, `cmu-database-group-lectures` -> `cmu`); add shortenings by the "Short repo label" comment in the script.
 - Discovery scans default branches only and the pattern is loose; review matches before `--run`.
 
+### Issues to workspaces
+
+[`.rwx/dispatch-issues.yml`](.rwx/dispatch-issues.yml) (Dagger; secrets `GITHUB_ISSUES_TOKEN`, `CONDUCTOR_API_KEY`) lists open issues for given repos and opens a workspace per issue with the create-pr prompt via the Conductor API; dry-run unless `run=1`. See [`skills/issue-workspaces/SKILL.md`](skills/issue-workspaces/SKILL.md).
+
 ### Tracking upstream issues
 
 "Track this issue" (an issue in another repo we're waiting on) means: add it to the watchlist [`watched-issues.json`](watched-issues.json) as `{ "repo", "number", "why" }`. The `check-closed-issues` cron ([`.rwx/check-closed-issues.yml`](.rwx/check-closed-issues.yml)) fails when a watched item closes, and RWX notifies (see [`skills/rwx/SKILL.md`](skills/rwx/SKILL.md)). Do **not** open a tracking issue in this repo or use claim labels for this. Past mistake: an agent opened a redundant tracking issue (#189) because the instructions didn't say this. Filing the upstream issue itself is separate and only on request. Check the script with `python3 scripts/check-closed-issues.py watched-issues.json 2099-01-01T00:00:00Z`.
@@ -52,3 +56,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 ### Reporting to Linear
 
 [`.rwx/report-to-linear.yml`](.rwx/report-to-linear.yml) creates or comments on a Linear issue (deduped by `key`) so checks like `check-closed-issues` can report to Linear. Logic lives in `ci/` (`ci/main.py linear-report`, a plain Dagger program); needs vault secret `LINEAR_API_KEY`. Run: `rwx run .rwx/report-to-linear.yml --init key=<key> --init title=<t> --init body=<b>`. Dagger must run in RWX, not in Conductor sandboxes.
+
+## Issue claims
+
+Before starting work on an issue, follow [`AGENT-LABELS.md`](AGENT-LABELS.md) (canonical source; other repos link to it).
