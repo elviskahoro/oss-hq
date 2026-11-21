@@ -57,6 +57,10 @@ Repos should hold pointers, not copies: `install-conductor-prompts.py --pointers
 
 [`.rwx/check-pr-issue-link.yml`](.rwx/check-pr-issue-link.yml) (script [`scripts/check-pr-issue-link.sh`](scripts/check-pr-issue-link.sh)) fails a PR whose body has no `Closes|Fixes|Resolves #N`, `Refs #N` (partial work) or `No issue: <reason>`; bot PRs are skipped. It is what makes the claim release in the create-pr prompt hold. Other repos adopt it by copying the file with their own clone URL.
 
+### Weekly label report
+
+[`.rwx/claims-report.yml`](.rwx/claims-report.yml) (script [`ci/claims_report.py`](ci/claims_report.py), read-only, secret `GITHUB_ISSUES_TOKEN`) runs Mondays 14:00 UTC across our three owners and lists claims with no open PR and open issues with no `type::*` label as Markdown in the task log. It fails the run when anything is listed so the RWX failed-cron notification delivers it. On demand: `rwx run .rwx/claims-report.yml --wait`.
+
 ### Issues to workspaces
 
 [`.rwx/dispatch-issues.yml`](.rwx/dispatch-issues.yml) (Dagger; secrets `GITHUB_ISSUES_TOKEN`, `CONDUCTOR_API_KEY`) lists open issues for given repos and opens a workspace per issue with the create-pr prompt via the Conductor API; dry-run unless `run=1`. See [`skills/issue-workspaces/SKILL.md`](skills/issue-workspaces/SKILL.md).
