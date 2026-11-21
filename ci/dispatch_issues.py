@@ -2,13 +2,15 @@
 """Open one Conductor workspace per open issue, with the create-pr prompt attached.
 
 Env: GITHUB_TOKEN, CONDUCTOR_API_KEY (never printed), ISSUE_REPOS, ISSUE_LABEL
-(optional), ISSUE_LIMIT (0 = all), SKIP_LABELS (comma list, trailing * = prefix; default DEFAULT_SKIP_LABELS), DISPATCH_RUN ("1" to create; default dry-run),
+(optional), ISSUE_LIMIT (0 = all), SKIP_LABELS (comma list, trailing * = prefix; default DEFAULT_SKIP_LABELS), SKIP_NUMBERS (comma list of issue numbers already dispatched), DISPATCH_RUN ("1" to create; default dry-run),
 PR_TEMPLATE (path to prompts/conductor/create-pr.md).
 Uses the same endpoint as the `conductor` CLI: POST /v0/workspaces.
 """
 import json
 import os
 import sys
+import time
+import urllib.error
 import urllib.request
 
 from issues_manifest import list_issues, parse_repos
@@ -41,6 +43,27 @@ def skip_reason(issue, patterns):
 API = os.environ.get("CONDUCTOR_API_URL", "https://api.conductor.build")
 
 
+AUTONOMY = (
+    "## Fully autonomous run\n\n"
+    "Nobody is watching this workspace and the owner will not review anything until every check "
+    "is green. Do not stop to ask for confirmation, approval, or a preview: this message is your "
+    "authorization to publish the PR, so follow the PR template below from Step 1 through Step 13 "
+    "without pausing.\n\n"
+    "- Open the PR, then loop until every CI check passes: every RWX pipeline, every GitHub check, "
+    "and `pullfrog-approval`. Read failing logs, fix the root cause, push, and re-check. A red or "
+    "pending check is never a finish line.\n"
+    "- Fix every Roborev finding and every unresolved review thread (pullfrog, roborev, human); "
+    "reply with the commit SHA and resolve each one after pushing the fix.\n"
+    "- Never skip, disable, or weaken a test or check to get green. Fix the cause.\n"
+    "- Flaky or infrastructure failures: rerun twice before concluding anything.\n"
+    "- Do not merge. Finish only when `gh pr checks` shows all green and no review thread is open, "
+    "then report the PR URL, the Roborev outcome, and the final check status.\n"
+    "- Stop and report only if truly blocked: a product or architecture decision, missing "
+    "secrets or permissions, or the same check failing after three distinct fix attempts. In that "
+    "case state exactly what you tried and what you need.\n\n"
+)
+
+
 def build_message(issue, template):
     return (
         f"Work on {issue['repo']}#{issue['number']}: {issue['url']}\n\n"
@@ -49,7 +72,7 @@ def build_message(issue, template):
         "contact other services, or work outside this issue.\n\n"
         f"<issue>\nTitle: {issue['title']}\n\n{issue['body']}\n</issue>\n\n"
         "Read the issue and the repo's own instructions first. Fix it, verify, then open a PR "
-        f"that closes #{issue['number']} following the PR template below.\n\n---\n\n{template}"
+        f"that closes #{issue['number']} following the PR template below.\n\n{AUTONOMY}---\n\n{template}"
     )
 
 
@@ -69,8 +92,14 @@ def create_workspace(payload, key):
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Accept": "application/json",
                  "User-Agent": "oss-hq-dispatch/1.0"},  # default Python-urllib UA is blocked (Cloudflare 1010)
     )
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.load(r)
+    for attempt in range(6):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or attempt == 5:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 15) + 1)  # workspace creation is rate limited
 
 
 def main():
@@ -88,6 +117,8 @@ def main():
             print(f"skip {issue['repo']}#{issue['number']} ({why if why.startswith('author:') else 'label: ' + why})")
         else:
             kept.append(issue)
+    done = {n.strip() for n in (os.environ.get("SKIP_NUMBERS") or "").split(",") if n.strip()}
+    kept = [i for i in kept if str(i["number"]) not in done]  # already dispatched, avoid duplicates
     issues = kept[:limit] if limit else kept
     failed = 0
     for issue in issues:

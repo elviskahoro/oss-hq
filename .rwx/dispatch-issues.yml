@@ -1,6 +1,6 @@
 # List open issues for a subset of repos and open a Conductor workspace per issue (Dagger).
 # Dry-run by default. Create for real with --init run=1; cap with --init limit=1 first.
-# Run: rwx run .rwx/dispatch-issues.yml --init repos="owner/a,owner/b" [--init label=bug] [--init limit=1] [--init skip_labels=a,b*] [--init run=1] --wait
+# Run: rwx run .rwx/dispatch-issues.yml --init repos="owner/a,owner/b" [--init label=bug] [--init limit=1] [--init skip_labels=a,b*] [--init skip_numbers=1,2] [--init run=1] --wait
 # Issues with a skip label are not dispatched (default list in ci/dispatch_issues.py; empty skip_labels uses it).
 # Vault secrets: GITHUB_ISSUES_TOKEN (issues read), CONDUCTOR_API_KEY. Never printed.
 on:
@@ -11,6 +11,7 @@ on:
       label: ""
       limit: "0"
       skip_labels: ""
+      skip_numbers: ""
       run: "0"
 
 base:
@@ -45,5 +46,6 @@ tasks:
       ISSUE_LABEL: ${{ init.label }}
       ISSUE_LIMIT: ${{ init.limit }}
       SKIP_LABELS: ${{ init.skip_labels }}
+      SKIP_NUMBERS: ${{ init.skip_numbers }}
       DISPATCH_RUN: ${{ init.run }}
     run: uv run dagger run python ci/main.py dispatch-issues
