@@ -56,7 +56,11 @@ tasks:
       chmod 600 ~/.git-credentials
       # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
       export FIREWORKS_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
-      git fetch --no-tags origin main:refs/remotes/origin/main
+      # A pushed commit is cloned shallow, so merge-base would find no shared
+      # history with main; unshallow while fetching main.
+      unshallow=()
+      [ "$(git rev-parse --is-shallow-repository)" = true ] && unshallow=(--unshallow)
+      git fetch --no-tags "${unshallow[@]}" origin main:refs/remotes/origin/main
       # `rwx run` ships local work as a patch on top of the nearest pushed
       # commit, so commit it here or roborev (committed ranges only) sees an
       # empty diff. Merge-base, not origin/main, so a main that moved ahead
