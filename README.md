@@ -44,11 +44,10 @@ Each step exists to take one job off your plate.
    Dagger pipelines run inside RWX tasks, and the agent downloads the
    results with `rwx artifacts download`. Heavy work still gets done from a
    lightweight workspace.
-4. **[roborev](https://roborev.io) reviews the change in the workspace,
-   before it's pushed.** roborev runs locally, with no hosted service. By
-   default it reviews every commit in the background, but this repo runs it
-   as a blocking step instead (`roborev review --wait --agent pi --provider fireworks --model accounts/fireworks/models/glm-5p3-flash`): the agent waits for
-   the verdict and fixes what it finds before pushing. Problems are cheapest
+4. **[roborev](https://roborev.io) reviews the change before it's pushed.**
+   roborev runs only on RWX, as a dispatch-only pipeline
+   (`rwx run .rwx/roborev.yml --wait`), not in the workspace. It's a
+   blocking step: the agent waits for the verdict and fixes what it finds before pushing. Problems are cheapest
    to fix while the agent still has the context, and background findings
    that arrive later are easy to ignore.
 5. **[Pullfrog](https://pullfrog.com) reviews it again on the pull request.**
@@ -118,12 +117,12 @@ each project. When people copy instructions by hand, the copies drift, and
 one project quietly keeps last month's advice. An automated check catches a
 stale copy before an agent follows it.
 
-### Heavy pieces are opt-in
+### Code-dev tooling runs on RWX
 
-Not every project needs the Python tooling, the issue syncing, or the private
-package catalog. Those pieces exist, but they stay off until a project asks
-for them. Adding the setup to a project that doesn't need them should cost
-nothing.
+The startup script provisions only the sandbox CLIs (rwx, infisical, resend,
+entire, uv, Python 3.13). Code-dev tooling such as pytest and roborev runs
+through RWX tasks instead of being installed in workspaces. Adding the setup
+to a project that doesn't need them should cost nothing.
 
 ### Secrets stay out of the repo
 
@@ -158,8 +157,8 @@ These tools aren't steps in the flow, but they keep it running smoothly:
 - **[Flox](https://flox.dev)** resolves one manifest into one lock file, so
   your laptop, CI, and every agent's sandbox run exactly the same software,
   built from prebuilt packages instead of compiled on a fragile machine.
-- **uv, pytest, Reflex, and ruff** are the Python essentials, for projects that want
-  them.
+- **uv** is the one Python tool provisioned in sandboxes; pytest and the
+  rest run through RWX tasks.
 
 ## Where to go next
 
@@ -178,6 +177,7 @@ read too.
 | Configure Pullfrog reviews | [`pullfrog-fireworks-setup`](skills/pullfrog-fireworks-setup/SKILL.md) |
 | Log in to Entire from a workspace | [`entire-device-login`](skills/entire-device-login/SKILL.md) |
 | Capture Claude sessions in Paper Compute | [`paper-compute-sandbox`](skills/paper-compute-sandbox/SKILL.md) |
+| Fan open issues out to Conductor workspaces | [`issue-workspaces`](skills/issue-workspaces/SKILL.md) |
 | Re-run the Flox experiments | [`flox-sandbox-harness`](skills/flox-sandbox-harness/SKILL.md) |
 | Publish or consume private Flox packages | [`floxhub-auth`](skills/floxhub-auth/SKILL.md) |
 | Authenticate the RWX CLI, or validate a change on RWX CI before opening a PR | [`rwx`](skills/rwx/SKILL.md) (summary in [`AGENTS.md`](AGENTS.md)) |

@@ -1,11 +1,11 @@
 ---
 name: conductor-startup-script
-description: Use when provisioning a Conductor cloud workspace with scripts/conductor-startup-script-cloud.sh, pasting it into another repo's setup field, setting its env vars (RWX_ACCESS_TOKEN, ROBOREV_AGENT/ROBOREV_MODEL, FIREWORKS_API_KEY, STARTUP_PY_DEV_TOOLS, STARTUP_BEST_EFFORT), bumping a pin, or diagnosing a workspace that came up missing uv/roborev/rwx/entire/pytest/reflex.
+description: Use when provisioning a Conductor cloud workspace with scripts/conductor-startup-script-cloud.sh, pasting it into another repo's setup field, setting its env vars (RWX_ACCESS_TOKEN), bumping a pin, or diagnosing a workspace that came up missing rwx/infisical/resend/entire/uv. Code-dev tools (roborev, pytest, ruff, pyright, reflex) are not provisioned; they run on RWX.
 ---
 
 # The Conductor startup script
 
-`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs pinned, checksum-verified roborev, rwx, and entire, plus Python 3.11 on the AL2023 sandbox class (its system python3 is 3.9). It also makes the tools work, not just exist: it validates the rwx token, writes the roborev config, starts the roborev daemon, and smoke-checks the review agent.
+`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs only the CLIs agents call directly (pinned, checksum-verified): rwx (plus token validation), infisical, resend, entire (with `git-remote-entire`), and uv, plus Python 3.13 on the AL2023 sandbox class (its system python3 is 3.9; 3.13 is installed alongside it via dnf). Every stage failure is fatal: a missing CLI fails setup loudly (after all stages report). Code-dev tooling runs as RWX tasks (issue #185); see "Where the moved tools run".
 
 For snapshot-build 403s or paste failures, use `conductor-cloud-startup-script-debugging`. To run the container test, use `run-startup-script-tests`.
 
@@ -20,9 +20,9 @@ Diagnosing a sick pasted workspace:
 
 | Symptom | Cause |
 | --- | --- |
-| Nothing resolves (`roborev`, `rwx`, …) | The paste is missing or stale. Re-paste the current script. |
-| `roborev`/`rwx` resolve but `uv` doesn't | `STARTUP_PY_DEV_TOOLS=1` isn't set in that repo's Conductor env vars. |
-| Reviews never run | `FIREWORKS_API_KEY` is missing (the smoke check WARNs). |
+| Nothing resolves (`rwx`, `infisical`, …) | The paste is missing or stale. Re-paste the current script. |
+| `rwx` resolves but is unauthenticated | `RWX_ACCESS_TOKEN` is unset or invalid (a WARN/FAIL row). |
+| `pytest`/`ruff`/`roborev` missing | By design: run them on RWX. |
 
 Paste-safety: the file must contain no triple double quotes and no backslash line continuations, because Conductor's TOML serialization breaks on them. `scripts/validate-pins.sh` enforces this in CI.
 
@@ -31,20 +31,17 @@ Paste-safety: the file must contain no triple double quotes and no backslash lin
 Set these in the repo's Conductor environment variables, never inline in the script. `.env.cloud` is a template you can fill in and copy over.
 
 - `RWX_ACCESS_TOKEN`: validated before it's written atomically to `~/.config/rwx/accesstoken`, so a bad token never overwrites a good one.
-- `ROBOREV_AGENT` (default `pi`) and `ROBOREV_MODEL` (default `fireworks/accounts/fireworks/models/glm-5p3-flash` for pi). The `fireworks/` prefix is required (issue #85). claude-code never logs in from a cloud sandbox, and codex returns 401.
-- `FIREWORKS_API_KEY`: Pi + Fireworks can't review without it.
-- `STARTUP_PY_DEV_TOOLS=1`: turns on uv, pytest, Reflex, ruff, pyright, and pyrefly (see below). Each consuming repo must set it itself; pasting the script alone never enables it.
-- `STARTUP_BEST_EFFORT=1`: a failed tool stage is recorded but doesn't fail setup. A Python 3.11 failure or a requested pytools failure still exits non-zero.
 
-## Reviews are on demand, never a background hook
+## Where the moved tools run
 
-The review gate is `roborev review --wait --agent pi --provider fireworks --model accounts/fireworks/models/glm-5p3-flash`. The script never installs a post-commit auto-review hook, because roborev's hook can only enqueue a background job, and findings that surface after the fact get lost. Concretely:
+| Tool | Command |
+| --- | --- |
+| roborev | `rwx run .rwx/roborev.yml --wait` (needs secret `FIREWORKS_API_KEY`; pins live in that file) |
+| pytest and the prompts/pin checks | `rwx run .rwx/test-prompts.yml --wait --fail-fast`, `rwx run .rwx/conductor-startup-script-cloud.yml --wait --fail-fast` |
+| lint, type check, format (trunk, ruff, pyright, pyrefly) | trunk runs inside RWX tasks, never as a local launcher |
+| one-off commands | `rwx sandbox exec -- <cmd>` |
 
-- It never runs `roborev init` (that installs hooks, and there's no flag to suppress them). It writes `.roborev.toml` directly instead.
-- It removes leftover roborev hooks.
-- It never writes into a machine-global `core.hooksPath`. It WARNs instead.
-
-Note: roborev does not read `ROBOREV_AGENT` itself; setup only uses it to seed `.roborev.toml` (when absent) and the global `default_agent`, so a repo without a config no longer falls back to codex. A committed `.roborev.toml` is treated as the repo's own and never overwritten. In this repo, set `agent`/`model` there, not via `ROBOREV_AGENT`.
+Also in this repo: `.conductor/settings.toml` calls the script with no flags; `STARTUP_BEST_EFFORT`, `STARTUP_PY_DEV_TOOLS`, `ROBOREV_AGENT`, `ROBOREV_MODEL` and the sandbox's `FIREWORKS_API_KEY` are gone.
 
 ## Entire
 
@@ -52,21 +49,19 @@ Note: roborev does not read `ROBOREV_AGENT` itself; setup only uses it to seed `
 
 Useful read-only queries: `entire status`, `entire checkpoint list`, `entire trail list --project gh/<owner>/<repo>`, `entire trail show <trail>`, `entire review --list`.
 
-## Python dev tools (`STARTUP_PY_DEV_TOOLS=1`, issue #44)
+## uv and Python
 
-- `uv` is the pinned release binary, installed in `/usr/local/bin`, with a `~/.local/bin` fallback when sudo isn't available. The Flox manifests' uv only exists inside an activation, so it doesn't count.
-- `pytest`, `reflex`, `ruff`, `pyright`, and `pyrefly` are installed into a uv-managed venv at `~/.conductor-pytools`, with their commands symlinked onto PATH.
-- Supported invocations: `pytest`, `reflex`, `~/.conductor-pytools/bin/python -m pytest`. A bare `python3 -m pytest` is not supported, because system site-packages are left clean.
-- Only the Reflex package is installed. Its frontend toolchain (bun/node, needed for `reflex init` and `reflex run`) is out of scope.
-- A failure here is always fatal, because a requested tool must never be missing from a workspace that looks ready.
+- `uv` (and `uvx`) is the pinned release binary, installed in `/usr/local/bin`, with a `~/.local/bin` fallback when sudo isn't available. The Flox manifests' uv only exists inside an activation, so it doesn't count.
+- Python 3.13 goes in alongside the system 3.9 and shadows only PATH lookups (`/usr/local/bin/python3`); dnf's absolute shebang keeps using 3.9. The container test asserts this.
 
 ## Pins
 
 Pins live in the script's pins block. Always read the current values there, never from docs.
 
 - A uv bump must change three things together: the startup script, `envs/prebuilt`, and `envs/floxhub-provision` (and their locks). `scripts/validate-pins.sh` cross-checks them.
-- pytest, Reflex, ruff, pyright, and pyrefly are pinned only in the startup script.
-- On re-runs, a working uv is reused as-is, so a `UV_PIN` bump only applies to fresh installs. pytest, Reflex, ruff, pyright, and pyrefly are upgraded in place.
+- resend: `RESEND_PIN` plus per-platform sha256s from the release's `checksums.txt`; `validate-pins.sh` checks the shape.
+- roborev's pin lives in `.rwx/roborev.yml` and must match the two Flox manifests (`validate-pins.sh`).
+- A working uv is reused as-is on re-runs, so a `UV_PIN` bump applies to fresh installs.
 - Entire: `ENTIRE_PIN` plus a per-platform `ENTIRE_SHA256_*` constant for each platform. The re-pin runbook is in the pins block.
 
 ## Deferred stages (issue #40): proven, not wired in yet

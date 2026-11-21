@@ -1,17 +1,15 @@
-# Seeded by conductor-startup-script-cloud.sh; now tracked and
-# hand-maintained. The startup script never overwrites a committed
-# copy (it treats one as the repo's own configuration), so its
-# ROBOREV_AGENT override does not apply in this repo — set `agent`
-# here directly. Reviews are on demand and blocking (roborev review
-# --wait); no post-commit auto-review hook is installed (see that
-# script for the reasoning).
+# Hand-maintained config read by the RWX roborev pipeline
+# (`rwx run .rwx/roborev.yml --wait`, the only way roborev runs; see
+# skills/roborev-rwx/SKILL.md). Reviews are blocking; no post-commit
+# auto-review hook is used.
 #
 # Pin rationale (issue #85): Pi + Fireworks was the only pair that
 # actually reached reviews in a Conductor cloud sandbox — claude-code
 # never logged in and codex returned 401. The `fireworks/` provider
 # prefix in `model` is required; a bare `accounts/fireworks/models/...`
 # fails with `Model ... not found`, and `~/.pi/agent/settings.json`'s
-# `defaultProvider` does NOT fix it. FIREWORKS_API_KEY belongs in the
-# sandbox environment, not in this file.
+# `defaultProvider` does NOT fix it. FIREWORKS_API_KEY is the RWX
+# secret the pipeline reads, not a sandbox environment variable and
+# never a value in this file.
 agent = "pi"
 model = "fireworks/accounts/fireworks/models/glm-5p3-flash"
