@@ -148,10 +148,10 @@ Commit message guidance for the merge commit:
 rwx run .rwx/roborev.yml --wait
 ```
 
-- **Dispatch through RWX.** Roborev runs only as `rwx run .rwx/roborev.yml --wait`; the sandbox has no local `roborev`/`pi` and no `FIREWORKS_API_KEY` (that secret lives in RWX). Run `rwx whoami` first (see AGENTS.md, RWX).
-- `--wait` is **required**: without it the dispatch returns before a verdict exists. Never report a started run as clean.
+- **Run it through RWX, not locally.** No `roborev` or `pi` is installed in the sandbox and no `FIREWORKS_API_KEY` is expected here (the pipeline uses the RWX secret). Export the `RWX_ACCESS_TOKEN_<OWNER>` matching the repo owner as `RWX_ACCESS_TOKEN` first (see `skills/rwx/SKILL.md`).
+- `--wait` is required — it blocks until the review finishes, and the pipeline fails closed (no `roborev: Review Passed` line exits non-zero). A failed or missing run is never clean.
 - **Review loop:** follow the shared Roborev policy in General Preferences. Scope includes any incorrectness in lines changed to resolve the conflict (such as a dropped hunk, choosing the wrong side, or a typo), any finding where the merged result is incorrect because of the interaction between base and branch changes—including semantic conflicts in lines Git merged automatically—and tests that exercise those changed or interacting behaviors, plus direct regressions from follow-up fix batches. Findings that already existed in the base branch are out of scope unless this branch's resolution changed or regressed them. Report other unrelated findings with reasons and do not silently expand scope.
-- If General Preferences is absent, keep fixing actionable findings with no round or per-finding cap until resolved or blocked by a major architecture/refactor, interface/product decision, or scope boundary. Report progress after each pass; ask about blockers and continue with other findings. If the RWX dispatch is unavailable, say so and ask whether to proceed.
+- If General Preferences is absent, keep fixing actionable findings with no round or per-finding cap until resolved or blocked by a major architecture/refactor, interface/product decision, or scope boundary. Report progress after each pass; ask about blockers and continue with other findings. If Roborev is unavailable, say so and ask whether to proceed.
 
 ### Step 9: Push
 

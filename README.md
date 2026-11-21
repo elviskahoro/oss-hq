@@ -44,11 +44,10 @@ Each step exists to take one job off your plate.
    Dagger pipelines run inside RWX tasks, and the agent downloads the
    results with `rwx artifacts download`. Heavy work still gets done from a
    lightweight workspace.
-4. **[roborev](https://roborev.io) reviews the change in the workspace,
-   before it's pushed.** roborev runs on RWX, dispatched from the
-   workspace (the sandbox has no local roborev). This repo runs it as a
-   blocking step (`rwx run .rwx/roborev.yml --wait`): the agent waits for
-   the verdict and fixes what it finds before pushing. Problems are cheapest
+4. **[roborev](https://roborev.io) reviews the change before it's pushed.**
+   roborev runs only on RWX, as a dispatch-only pipeline
+   (`rwx run .rwx/roborev.yml --wait`), not in the workspace. It's a
+   blocking step: the agent waits for the verdict and fixes what it finds before pushing. Problems are cheapest
    to fix while the agent still has the context, and background findings
    that arrive later are easy to ignore.
 5. **[Pullfrog](https://pullfrog.com) reviews it again on the pull request.**
