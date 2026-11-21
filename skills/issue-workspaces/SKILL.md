@@ -28,6 +28,8 @@ The issue text becomes the agent's starting message, so an outsider's issue coul
 
 Issues carrying any of these are skipped (printed as `skip repo#n (label: x)`): any `status::*` label, `needs-human`, `gas-city`. These are the "don't pick up" labels from [`AGENT-LABELS.md`](../../AGENT-LABELS.md). Override with `--init skip_labels=a,b*` (trailing `*` is a prefix match); the override replaces the defaults. `limit` applies after skipping.
 
+`needs-human` is skipped by automated fan-out and autonomous pickup. When the user explicitly asks for those issues (e.g. "every open issue, including the needs-human ones"), dispatch them with `--init skip_labels=status::*,gas-city` (the override replaces the defaults, and an empty value falls back to them), then post a note into each new workspace's chat right away: "labelled needs-human: ask the user for the decision before proceeding". The starting message cannot carry the note. Ask before skipping any issue the user named. `status::*` and `gas-city` stay skipped unless the user also asks for them.
+
 ## Notes
 
 - Workspace names are `<repo>-issue-<n>`. A rerun creates duplicates, so track what has been dispatched.
