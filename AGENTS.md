@@ -57,6 +57,44 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 [`.rwx/report-to-linear.yml`](.rwx/report-to-linear.yml) creates or comments on a Linear issue (deduped by `key`) so checks like `check-closed-issues` can report to Linear. Logic lives in `ci/` (`ci/main.py linear-report`, a plain Dagger program); needs vault secret `LINEAR_API_KEY`. Run: `rwx run .rwx/report-to-linear.yml --init key=<key> --init title=<t> --init body=<b>`. Dagger must run in RWX, not in Conductor sandboxes.
 
-## Issue claims
+## Working issues and labels
 
-Before starting work on an issue, follow [`AGENT-LABELS.md`](AGENT-LABELS.md) (canonical source; other repos link to it).
+Claim an issue before any work. Labels are a signal, not a lock. Canonical protocol (claim comment format `claim: <id> <branch> <UTC time>`, verify, takeover): [`AGENT-LABELS.md`](AGENT-LABELS.md); short version: [`skills/github-issue-claims`](skills/github-issue-claims/SKILL.md).
+
+| Label | Meaning |
+| --- | --- |
+| `status::in_progress` | Claimed and being worked on by an agent. Do not pick up. |
+| `status::blocked` | Waiting on another issue in this repo ("blocked by #N"). |
+| `status::blocked-external` | Waiting on something outside the repo (another repo, upstream, a vendor). |
+| `status::deferred` | Parked on purpose; revisit date is in a comment. |
+| `needs-human` | A person must decide. Agents must not pick up. |
+| `gas-city` | Routed to Gas City. Conductor dispatch must not pick up. |
+| `stale-claim` | Claim has no recent heartbeat; reclaimable. |
+
+### Picking up work
+
+1. Never pick up an issue labeled `needs-human`, `status::in_progress`, `status::blocked`, `status::blocked-external`, `status::deferred`, or `gas-city`.
+2. An issue labeled `stale-claim` may be reclaimed. Re-claim it and comment that you took over.
+
+### Claiming (required before any work)
+
+3. Claim first: add `status::in_progress`, assign yourself, and leave a one-line "starting" comment.
+4. If `status::in_progress` is already present, stop. Two agents must never work one issue.
+5. Re-read the labels right after claiming. If another agent claimed at the same moment, back off.
+6. For long-running work, comment periodically so the claim does not become a `stale-claim`.
+
+### Releasing
+
+7. When done, put `Closes #N` in the PR body and remove `status::in_progress` once the PR is open. Merge closes the issue.
+8. If you abandon or fail, remove `status::in_progress` and comment what happened and what remains. Never leave a dead claim.
+9. If you need a decision you cannot make, remove `status::in_progress`, add `needs-human`, and comment the exact question. Do not guess. Never remove `needs-human` yourself.
+
+### Blocked and deferred
+
+10. Blocked by another issue in this repo: add `status::blocked`, comment "blocked by #N", and release the claim.
+11. Blocked by something outside the repo: add `status::blocked-external`, comment what you are waiting on, and release the claim.
+12. Never set `status::deferred` yourself. Only a human parks work.
+
+### Visibility
+
+13. gh-dash hides issues labeled `status::*` and `gas-city`, so label hygiene decides what humans see.
