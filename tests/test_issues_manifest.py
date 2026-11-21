@@ -29,7 +29,7 @@ def test_normalize_handles_null_body():
     item = {"number": 3, "title": "t", "html_url": "u", "labels": [{"name": "bug"}], "body": None}
     assert im.normalize("a/b", item) == {
         "repo": "a/b", "number": 3, "title": "t", "url": "u", "labels": ["bug"], "body": "",
-        "author_association": "NONE",
+        "author": "", "author_association": "NONE",
     }
 
 
@@ -78,3 +78,15 @@ def test_skip_reason_rejects_untrusted_authors():
         assert di.skip_reason({"author_association": assoc, "labels": []}, pats) == f"author: {assoc}"
     for assoc in ("OWNER", "MEMBER", "COLLABORATOR"):
         assert di.skip_reason({"author_association": assoc, "labels": []}, pats) is None
+
+
+def test_skip_reason_allows_trusted_bots():
+    import sys
+    sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ci"))
+    import dispatch_issues as di
+
+    pats = di.DEFAULT_SKIP_LABELS.split(",")
+    bot = {"author": "detail-app[bot]", "author_association": "CONTRIBUTOR", "labels": []}
+    assert di.skip_reason(bot, pats) is None
+    other = {"author": "someone-else[bot]", "author_association": "CONTRIBUTOR", "labels": []}
+    assert di.skip_reason(other, pats) == "author: CONTRIBUTOR"

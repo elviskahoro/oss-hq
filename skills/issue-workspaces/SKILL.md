@@ -22,7 +22,7 @@ There is no installable `conductor` CLI in RWX (it's injected into Conductor wor
 
 ## Untrusted issues
 
-The issue text becomes the agent's starting message, so an outsider's issue could carry instructions for the agent. Only issues whose author is the repo `OWNER`, an org `MEMBER` or a `COLLABORATOR` are dispatched (printed as `skip repo#n (author: NONE)` otherwise), and the message marks the issue title and body as data, not instructions.
+The issue text becomes the agent's starting message, so an outsider's issue could carry instructions for the agent. Only issues whose author is the repo `OWNER`, an org `MEMBER`, a `COLLABORATOR`, or an allowed bot (`TRUSTED_BOTS` in `ci/dispatch_issues.py`: `detail-app[bot]`) are dispatched (printed as `skip repo#n (author: NONE)` otherwise), and the message marks the issue title and body as data, not instructions.
 
 ## Skipped labels
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """List open issues (pull requests excluded) for owner/name repos via the GitHub API.
 
-Used by dispatch_issues.py. Each issue is {repo, number, title, url, labels, body, author_association}.
+Used by dispatch_issues.py. Each issue is {repo, number, title, url, labels, body, author, author_association}.
 """
 import json
 import re
@@ -27,6 +27,7 @@ def normalize(repo, item):
         "url": item["html_url"],
         "labels": [lbl["name"] for lbl in item.get("labels", [])],
         "body": item.get("body") or "",
+        "author": (item.get("user") or {}).get("login", ""),
         "author_association": item.get("author_association", "NONE"),
     }
 

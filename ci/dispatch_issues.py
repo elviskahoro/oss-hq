@@ -23,11 +23,13 @@ DEFAULT_SKIP_LABELS = (
 # Issue text becomes an agent's starting message, so only dispatch issues from people
 # who can already push: an outsider's issue could carry instructions for the agent.
 TRUSTED_AUTHORS = {"OWNER", "MEMBER", "COLLABORATOR"}
+# Bots trusted by login even though GitHub reports them as CONTRIBUTOR.
+TRUSTED_BOTS = {"detail-app[bot]"}
 
 
 def skip_reason(issue, patterns):
     """Return why an issue must not be dispatched (untrusted author or skip label), or None."""
-    if issue.get("author_association") not in TRUSTED_AUTHORS:
+    if issue.get("author_association") not in TRUSTED_AUTHORS and issue.get("author") not in TRUSTED_BOTS:
         return f"author: {issue.get('author_association', 'unknown')}"
     for label in issue["labels"]:
         for pat in patterns:
