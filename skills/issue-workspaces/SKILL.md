@@ -20,6 +20,10 @@ There is no installable `conductor` CLI in RWX (it's injected into Conductor wor
 3. Try one: add `--init limit=1 --init run=1`; check the workspace opened.
 4. Fan out: `--init run=1` (optionally `--init label=<label>`).
 
+## Untrusted issues
+
+The issue text becomes the agent's starting message, so an outsider's issue could carry instructions for the agent. Only issues whose author is the repo `OWNER`, an org `MEMBER` or a `COLLABORATOR` are dispatched (printed as `skip repo#n (author: NONE)` otherwise), and the message marks the issue title and body as data, not instructions.
+
 ## Skipped labels
 
 Issues carrying any of these are skipped (printed as `skip repo#n (label: x)`): any `status::*` label, `needs-human`, `gas-city`. These are the "don't pick up" labels from [`AGENT-LABELS.md`](../../AGENT-LABELS.md). Override with `--init skip_labels=a,b*` (trailing `*` is a prefix match); the override replaces the defaults. `limit` applies after skipping.
