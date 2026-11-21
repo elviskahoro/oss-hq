@@ -111,6 +111,30 @@ GENERATED_NOTE = (
 )
 
 
+POINTER_NOTE = (
+    "Prompts below are pointers to oss-hq prompts/conductor/*.md on main, "
+    "written by scripts/install-conductor-prompts.py --pointers; nothing to re-sync."
+)
+POINTER_BASE_URL = "https://raw.githubusercontent.com/elviskahoro/oss-hq/main/prompts/conductor"
+
+
+def pointer_prompts(prompts: dict[str, str]) -> dict[str, str]:
+    """Replace each prompt body with a short stub that fetches the canonical
+    .md from oss-hq main, so merging to oss-hq reaches every repo with no
+    re-install. The agent follows unpinned content; pin the URL to a commit
+    SHA instead if that trust boundary matters."""
+    stubs = {}
+    for key in prompts:
+        url = f"{POINTER_BASE_URL}/{key.replace('_', '-')}.md"
+        stubs[key] = (
+            f"Follow the canonical instructions for {key.replace('_', ' ')} at\n{url}\n"
+            "Fetch them first (`curl -fsSL <url>`) and follow them exactly; where this\n"
+            "repo's AGENTS.md/CLAUDE.md differ, the repo wins. If the fetch fails, say so\n"
+            "and stop instead of improvising.\n"
+        )
+    return stubs
+
+
 def slot_for_path(path: Path) -> str:
     """Map a prompt file onto a Conductor [prompts] slot, or exit with an error."""
     key = path.stem.replace("-", "_")
@@ -220,13 +244,13 @@ def table_is_installer_managed(table: object) -> bool:
     return "install-conductor-prompts.py" in comment
 
 
-def cmd_install(prompts: dict[str, str], path: Path) -> int:
+def cmd_install(prompts: dict[str, str], path: Path, note: str = GENERATED_NOTE) -> int:
     doc = load_settings_doc(path)
     fresh = not path.exists()
 
     if "prompts" not in doc:
         table = tomlkit.table()
-        table.comment(GENERATED_NOTE)
+        table.comment(note)
         doc["prompts"] = table
     prompts_table = doc["prompts"]
 
@@ -577,6 +601,11 @@ def main() -> int:
         default=DEFAULT_PROMPTS_DIR,
         help=f"directory of .md prompt sources (default: {DEFAULT_PROMPTS_DIR})",
     )
+    parser.add_argument(
+        "--pointers",
+        action="store_true",
+        help="install short stubs that fetch the canonical prompts from oss-hq main instead of copies",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
         "--check",
@@ -599,13 +628,15 @@ def main() -> int:
         return self_test(args.prompts_dir)
 
     prompts = load_prompts(args.prompts_dir)
+    if args.pointers:
+        prompts = pointer_prompts(prompts)
     path = settings_path(args.repo.resolve(), args.local)
 
     if args.check:
         return cmd_check(prompts, path)
     if args.print:
         return cmd_print(prompts, path)
-    return cmd_install(prompts, path)
+    return cmd_install(prompts, path, POINTER_NOTE if args.pointers else GENERATED_NOTE)
 
 
 if __name__ == "__main__":

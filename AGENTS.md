@@ -51,7 +51,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 ### Propagating prompt changes
 
-Conductor prompts are copied into each repo's `.conductor/settings.toml`, not referenced, so merging a change to `prompts/conductor/` reaches nothing by itself. After the merge, [`scripts/dispatch-conductor-prompts.sh`](scripts/dispatch-conductor-prompts.sh) opens one workspace per repo to re-run `install-conductor-prompts.py` and PR the result. Dry-run by default; `--run` creates workspaces. Pass explicit repos to target some; discovery finds only default-branch settings with `create_pr`.
+Repos should hold pointers, not copies: `install-conductor-prompts.py --pointers` writes short stubs into a repo's `.conductor/settings.toml` that fetch `prompts/conductor/*.md` from oss-hq `main`, so a merge here reaches them with no re-install (the agent follows unpinned `main`; pin the URL to a SHA if that matters). Repos still holding embedded copies need a one-time migration: [`scripts/dispatch-conductor-prompts.sh`](scripts/dispatch-conductor-prompts.sh) opens one workspace per repo to run `--pointers` and PR it. Dry-run by default; `--run` creates workspaces (the `conductor` CLI is at `/Applications/Conductor.app/Contents/Resources/bin`). Discovery finds only default-branch settings with `create_pr`; pass repos to target some. oss-hq itself keeps embedded copies (self-hosting drift check).
 
 ### Issues to workspaces
 
