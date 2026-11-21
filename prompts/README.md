@@ -118,13 +118,12 @@ from a removed source.
 `create-pr.md` is ported from gtm-sdk's `prompts/conductor/create-pr.md`
 (including its gtm-sdk#921 fix) with these changes so it works in any repo:
 
-- Roborev is invoked as the plain executable (`roborev review --wait --agent pi --provider fireworks --model accounts/fireworks/models/glm-5p3-flash`), not
-  the `git roborev` alias — aliases may not exist in cloud sandboxes.
-- Roborev reviews are always blocking, never fire-and-forget: a bare
-  `roborev review` (or a leftover post-commit auto-review hook) only
-  enqueues a background daemon job and returns before a verdict exists —
-  an enqueue is not a verdict, and a stray enqueue is blocked on
-  (`roborev wait`, or re-run with `--wait`) before the gate can pass.
+- Roborev runs only through the dispatch-only RWX pipeline
+  (`rwx run .rwx/roborev.yml --wait`), never as a local `roborev` or `pi`
+  invocation; the sandbox has neither and needs no `FIREWORKS_API_KEY`.
+- Roborev reviews are always blocking, never fire-and-forget: the
+  pipeline blocks (`--wait`) and fails closed, so a missing verdict is never
+  treated as clean.
 - Relative skill links (`../cli-roborev-guide/SKILL.md`,
   `../trunk-cli-guide/SKILL.md`) became "consult the repo's guide skill if it
   ships one" — the links were dead outside gtm-sdk.
