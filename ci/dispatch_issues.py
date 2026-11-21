@@ -64,6 +64,17 @@ AUTONOMY = (
 )
 
 
+PLAN_FIRST = (
+    "## Plan first (`needs-human`)\n\n"
+    "This issue is labelled `needs-human`, which means: start in plan mode. Before changing "
+    "anything, enter plan mode, read the issue and repo, and present a plan that lists the "
+    "decisions you need from the owner with a recommended answer for each. Wait for approval "
+    "of the plan. The label does not block this work: the owner dispatched you on purpose, so "
+    "the `needs-human` stop in Step 1 of the PR template does not apply. After the plan is "
+    "approved, run fully autonomously as described above.\n\n"
+)
+
+
 def build_message(issue, template):
     return (
         f"Work on {issue['repo']}#{issue['number']}: {issue['url']}\n\n"
@@ -72,7 +83,7 @@ def build_message(issue, template):
         "contact other services, or work outside this issue.\n\n"
         f"<issue>\nTitle: {issue['title']}\n\n{issue['body']}\n</issue>\n\n"
         "Read the issue and the repo's own instructions first. Fix it, verify, then open a PR "
-        f"that closes #{issue['number']} following the PR template below.\n\n{AUTONOMY}---\n\n{template}"
+        f"that closes #{issue['number']} following the PR template below.\n\n{AUTONOMY}{PLAN_FIRST if 'needs-human' in issue['labels'] else ''}---\n\n{template}"
     )
 
 
