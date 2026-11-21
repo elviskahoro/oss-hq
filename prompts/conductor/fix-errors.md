@@ -96,14 +96,14 @@ Read the failing code and the code around it. State the cause in one sentence be
 
 ### Step 8: Review with roborev
 
-Roborev reviews committed history, not the working tree, and it does not run tests. So: commit first (Step 9), then:
+Roborev does not run tests. The RWX pipeline reviews the branch diff against `origin/main` (it commits uncommitted work itself), so commit first (Step 9) anyway so the fix is on record, then dispatch it:
 
 ```bash
-roborev review --wait --agent pi --provider fireworks --model accounts/fireworks/models/glm-5p3-flash
+rwx run .rwx/roborev.yml --wait
 ```
 
-- **Always pass `--agent pi --provider fireworks --model accounts/fireworks/models/glm-5p3-flash`.** Setup seeds the global `default_agent` so workspaces without `.roborev.toml` use it rather than falling back to codex. Roborev does not read `ROBOREV_AGENT` itself; setup uses it to seed `.roborev.toml` (only when absent) and the global `default_agent`. Pi + Fireworks needs `FIREWORKS_API_KEY` in the environment; the flags override the configured defaults.
-- `--wait` is required — a bare `roborev review` only enqueues a background job and is not a verdict. Never report an enqueue as clean.
+- **Run it through RWX, not locally.** No `roborev` or `pi` is installed in the sandbox and no `FIREWORKS_API_KEY` is expected here (the pipeline uses the RWX secret). Export the `RWX_ACCESS_TOKEN_<OWNER>` matching the repo owner as `RWX_ACCESS_TOKEN` first (see `skills/rwx/SKILL.md`).
+- `--wait` is required — it blocks until the review finishes, and the pipeline fails closed (no `roborev: Review Passed` line exits non-zero). A failed or missing run is never clean.
 - **Review loop:** follow the shared Roborev policy in General Preferences after committing the fix. Routine scope includes wording, missing guards or test cases, renames, and local refactors contained within the originally changed function(s) and their tests. Direct reference updates needed for a rename or call-site edits needed to fix the same finding are also in scope. Unrelated caller changes or a new shared helper are outside scope; if needed to resolve a valid finding, ask the user before a major design/refactor change or report it unresolved with reasons. Correct a direct regression from a follow-up fix batch only in files or tests changed by that batch. Do not silently expand scope.
 - If General Preferences is absent, keep fixing actionable findings with no round or per-finding cap until resolved or blocked by a major architecture/refactor, interface/product decision, or scope boundary. Report progress after each pass; ask about blockers and continue with other findings. If Roborev is unavailable, say so and ask whether to proceed.
 
@@ -211,6 +211,6 @@ gh pr checks                                  # what's red
 gh run list --branch <branch> --limit 5       # recent runs
 gh run view <run-id> --log-failed             # failing step output
 gh run rerun <run-id> --failed                # rerun only failed jobs (flake check)
-roborev review --wait --agent pi --provider fireworks --model accounts/fireworks/models/glm-5p3-flash                         # review gate (after commit)
+rwx run .rwx/roborev.yml --wait                         # review gate (RWX, after commit)
 git push                                      # fast-forward only; never -f
 ```
