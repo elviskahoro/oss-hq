@@ -2,13 +2,15 @@
 """Open one Conductor workspace per open issue, with the create-pr prompt attached.
 
 Env: GITHUB_TOKEN, CONDUCTOR_API_KEY (never printed), ISSUE_REPOS, ISSUE_LABEL
-(optional), ISSUE_LIMIT (0 = all), SKIP_LABELS (comma list, trailing * = prefix; default DEFAULT_SKIP_LABELS), DISPATCH_RUN ("1" to create; default dry-run),
+(optional), ISSUE_LIMIT (0 = all), SKIP_LABELS (comma list, trailing * = prefix; default DEFAULT_SKIP_LABELS), SKIP_NUMBERS (comma list of issue numbers already dispatched), DISPATCH_RUN ("1" to create; default dry-run),
 PR_TEMPLATE (path to prompts/conductor/create-pr.md).
 Uses the same endpoint as the `conductor` CLI: POST /v0/workspaces.
 """
 import json
 import os
 import sys
+import time
+import urllib.error
 import urllib.request
 
 from issues_manifest import list_issues, parse_repos
@@ -90,8 +92,14 @@ def create_workspace(payload, key):
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Accept": "application/json",
                  "User-Agent": "oss-hq-dispatch/1.0"},  # default Python-urllib UA is blocked (Cloudflare 1010)
     )
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.load(r)
+    for attempt in range(6):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or attempt == 5:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 15) + 1)  # workspace creation is rate limited
 
 
 def main():
@@ -109,6 +117,8 @@ def main():
             print(f"skip {issue['repo']}#{issue['number']} ({why if why.startswith('author:') else 'label: ' + why})")
         else:
             kept.append(issue)
+    done = {n.strip() for n in (os.environ.get("SKIP_NUMBERS") or "").split(",") if n.strip()}
+    kept = [i for i in kept if str(i["number"]) not in done]  # already dispatched, avoid duplicates
     issues = kept[:limit] if limit else kept
     failed = 0
     for issue in issues:
