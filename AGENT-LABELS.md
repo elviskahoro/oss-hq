@@ -51,7 +51,7 @@ Open/closed is GitHub's native state. A linked open PR also means "in progress".
 
 Each issue also gets one **type** label named after its [Conventional Commits](https://www.conventionalcommits.org/) type: `type::feat`, `type::fix`, `type::docs`, `type::refactor`, `type::perf`, `type::test`, `type::build`, `type::ci`, `type::chore`, `type::style`, `type::revert`. Type labels never gate pickup.
 
-Repos keep only these labels (`status::*`, `needs-human`, `gas-city`, `agent-ready`, `stale-claim`, `type::*`) plus labels that automation writes (Trunk merge queue `trunk-*`, Dependabot `dependencies`/ecosystem labels, bots such as `kilo-*`). Delete GitHub's defaults (`bug`, `enhancement`, `documentation`, `wontfix`, `question`, ...) after renaming the first three to `type::fix`, `type::feat`, `type::docs` so existing issues keep them.
+The owner's repos use only these labels (`status::*`, `needs-human`, `gas-city`, `agent-ready`, `stale-claim`, `type::*`) plus labels that automation writes (Trunk merge queue `trunk-*`, Dependabot `dependencies`/ecosystem labels, bots such as `kilo-*`). Cleaning up other labels is an owner decision, not part of adopting: deleting a label strips it from every issue and PR. When the owner asks, rename `bug`, `enhancement` and `documentation` to `type::fix`, `type::feat` and `type::docs` (a rename keeps them on existing issues) before deleting the rest.
 
 ## 3. Protocol
 

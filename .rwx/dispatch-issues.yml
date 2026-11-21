@@ -31,7 +31,8 @@ tasks:
 
   - key: dagger-cli
     run: |
-      curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+      # Pinned to the dagger-io SDK version in uv.lock; CLI/SDK skew is unsupported.
+      curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=0.21.8 BIN_DIR="$HOME/.local/bin" sh
       echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
 
   - key: dispatch-issues

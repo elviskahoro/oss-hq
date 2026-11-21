@@ -22,7 +22,7 @@ There is no installable `conductor` CLI in RWX (it's injected into Conductor wor
 
 ## Skipped labels
 
-Issues carrying any of these are skipped (printed as `skip repo#n (label: x)`): `status::in_progress`, `status::blocked`, `status::blocked-external`, `status::deferred`, `needs-human`, `gas-city`. These are the "don't pick up" labels from [`AGENT-LABELS.md`](../../AGENT-LABELS.md). Override with `--init skip_labels=a,b*` (trailing `*` is a prefix match); the override replaces the defaults. `limit` applies after skipping.
+Issues carrying any of these are skipped (printed as `skip repo#n (label: x)`): any `status::*` label, `needs-human`, `gas-city`. These are the "don't pick up" labels from [`AGENT-LABELS.md`](../../AGENT-LABELS.md). Override with `--init skip_labels=a,b*` (trailing `*` is a prefix match); the override replaces the defaults. `limit` applies after skipping.
 
 ## Notes
 

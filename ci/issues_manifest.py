@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-"""Build a manifest of open issues for a subset of repos.
+"""List open issues (pull requests excluded) for owner/name repos via the GitHub API.
 
-Env: GITHUB_TOKEN (never printed), ISSUE_REPOS (comma/space separated
-owner/name list), ISSUE_LABEL (optional, only issues with this label),
-ISSUE_OUT (output path, default manifest.json).
-Pull requests are excluded. Output: {"issues": [{repo, number, title, url,
-labels, body}]}.
+Used by dispatch_issues.py. Each issue is {repo, number, title, url, labels, body}.
 """
 import json
-import os
 import re
-import sys
+import urllib.parse
 import urllib.request
 
 API = "https://api.github.com"
@@ -48,7 +43,7 @@ def fetch_page(url, token):
 
 
 def list_issues(repo, token, label=""):
-    url = f"{API}/repos/{repo}/issues?state=open&per_page=100" + (f"&labels={label}" if label else "")
+    url = f"{API}/repos/{repo}/issues?state=open&per_page=100" + (f"&labels={urllib.parse.quote(label)}" if label else "")
     out = []
     while url:
         items, link = fetch_page(url, token)
@@ -56,18 +51,3 @@ def list_issues(repo, token, label=""):
         m = re.search(r'<([^>]+)>;\s*rel="next"', link)
         url = m.group(1) if m else None
     return out
-
-
-def main():
-    token = os.environ["GITHUB_TOKEN"]
-    issues = []
-    for repo in parse_repos(os.environ["ISSUE_REPOS"]):
-        found = list_issues(repo, token, os.environ.get("ISSUE_LABEL", ""))
-        print(f"{repo}: {len(found)} open issues", file=sys.stderr)
-        issues += found
-    with open(os.environ.get("ISSUE_OUT", "manifest.json"), "w") as f:
-        json.dump({"issues": issues}, f, indent=2)
-
-
-if __name__ == "__main__":
-    main()

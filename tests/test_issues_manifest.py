@@ -54,5 +54,13 @@ def test_skip_reason_matches_exact_and_prefix():
     assert di.skip_reason({"labels": ["status::blocked-external"]}, pats) == "status::blocked-external"
     assert di.skip_reason({"labels": ["status::blocked"]}, pats) == "status::blocked"
     assert di.skip_reason({"labels": ["gas-city"]}, pats) == "gas-city"
+    assert di.skip_reason({"labels": ["status::some-future-state"]}, pats) == "status::some-future-state"
     assert di.skip_reason({"labels": ["type::fix", "agent-ready"]}, pats) is None
     assert di.skip_reason({"labels": []}, pats) is None
+
+
+def test_list_issues_quotes_label(monkeypatch):
+    seen = []
+    monkeypatch.setattr(im, "fetch_page", lambda url, token: (seen.append(url), ([], ""))[1])
+    im.list_issues("a/b", "t", "good first issue")
+    assert "labels=good%20first%20issue" in seen[0]

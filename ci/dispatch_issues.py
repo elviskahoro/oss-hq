@@ -13,9 +13,10 @@ import urllib.request
 
 from issues_manifest import list_issues, parse_repos
 
-# Labels meaning "don't pick up" (AGENT-LABELS.md). A trailing * is a prefix match.
+# Labels meaning "don't pick up" (AGENT-LABELS.md: any status::* label, needs-human, gas-city).
+# A trailing * is a prefix match, so status labels added later are skipped too.
 DEFAULT_SKIP_LABELS = (
-    "status::in_progress,status::blocked,status::blocked-external,status::deferred,needs-human,gas-city"
+    "status::*,needs-human,gas-city"
 )
 
 
