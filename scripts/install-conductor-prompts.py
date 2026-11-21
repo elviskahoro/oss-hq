@@ -115,22 +115,25 @@ POINTER_NOTE = (
     "Prompts below are pointers to oss-hq prompts/conductor/*.md on main, "
     "written by scripts/install-conductor-prompts.py --pointers; nothing to re-sync."
 )
-POINTER_BASE_URL = "https://raw.githubusercontent.com/elviskahoro/oss-hq/main/prompts/conductor"
+POINTER_BASE_URL = "https://raw.githubusercontent.com/elviskahoro/oss-hq"
 
 
 def pointer_prompts(prompts: dict[str, str]) -> dict[str, str]:
     """Replace each prompt body with a short stub that fetches the canonical
     .md from oss-hq main, so merging to oss-hq reaches every repo with no
-    re-install. The agent follows unpinned content; pin the URL to a commit
-    SHA instead if that trust boundary matters."""
+    re-install. The default tracks main; a workspace pins a SHA or tag by setting
+    CONDUCTOR_PROMPTS_REF (e.g. in [environment_variables])."""
     stubs = {}
     for key in prompts:
-        url = f"{POINTER_BASE_URL}/{key.replace('_', '-')}.md"
+        name = f"{key.replace('_', '-')}.md"
+        url = f"{POINTER_BASE_URL}/${{CONDUCTOR_PROMPTS_REF:-main}}/prompts/conductor/{name}"
         stubs[key] = (
-            f"Follow the canonical instructions for {key.replace('_', ' ')} at\n{url}\n"
-            "Fetch them first (`curl -fsSL <url>`) and follow them exactly; where this\n"
-            "repo's AGENTS.md/CLAUDE.md differ, the repo wins. If the fetch fails, say so\n"
-            "and stop instead of improvising.\n"
+            f"Follow the canonical oss-hq prompt for {key.replace('_', ' ')}: "
+            f"https://github.com/elviskahoro/oss-hq/blob/main/prompts/conductor/{name}\n"
+            "Fetch it fresh each time; set `CONDUCTOR_PROMPTS_REF` to a SHA or tag to pin, "
+            f"default `main` (`curl -fsSL {url}`) and follow it exactly. "
+            "Where this repo's AGENTS.md/CLAUDE.md differ, the repo wins. "
+            "If the fetch fails, say so and stop instead of improvising.\n"
         )
     return stubs
 
