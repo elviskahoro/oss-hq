@@ -53,6 +53,10 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 Repos should hold pointers, not copies: `install-conductor-prompts.py --pointers` writes short stubs into a repo's `.conductor/settings.toml` that fetch `prompts/conductor/*.md` from oss-hq `main`, so a merge here reaches them with no re-install (the agent follows `main` unless a workspace sets `CONDUCTOR_PROMPTS_REF` to a SHA or tag, e.g. in `[environment_variables]`). Repos still holding embedded copies need a one-time migration: [`scripts/dispatch-conductor-prompts.sh`](scripts/dispatch-conductor-prompts.sh) opens one workspace per repo to run `--pointers` and PR it. Dry-run by default; `--run` creates workspaces (the `conductor` CLI is at `/Applications/Conductor.app/Contents/Resources/bin`). Discovery finds only default-branch settings with `create_pr`; pass repos to target some. oss-hq itself keeps embedded copies (self-hosting drift check).
 
+### PR issue-link check
+
+[`.rwx/check-pr-issue-link.yml`](.rwx/check-pr-issue-link.yml) (script [`scripts/check-pr-issue-link.sh`](scripts/check-pr-issue-link.sh)) fails a PR whose body has no `Closes|Fixes|Resolves #N`, `Refs #N` (partial work) or `No issue: <reason>`; bot PRs are skipped. It is what makes the claim release in the create-pr prompt hold. Other repos adopt it by copying the file with their own clone URL.
+
 ### Issues to workspaces
 
 [`.rwx/dispatch-issues.yml`](.rwx/dispatch-issues.yml) (Dagger; secrets `GITHUB_ISSUES_TOKEN`, `CONDUCTOR_API_KEY`) lists open issues for given repos and opens a workspace per issue with the create-pr prompt via the Conductor API; dry-run unless `run=1`. See [`skills/issue-workspaces/SKILL.md`](skills/issue-workspaces/SKILL.md).
