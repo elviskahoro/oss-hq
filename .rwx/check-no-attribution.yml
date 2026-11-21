@@ -1,0 +1,38 @@
+# Fails if the PR body or any commit in the PR has an AI attribution line
+# (e.g. "🤖 Generated with Claude Code", "Co-Authored-By: Claude").
+on:
+  cli:
+    init:
+      commit-sha: ${{ event.git.sha }}
+      base-ref: main
+      pr-body: ""
+  github:
+    pull_request:
+      actions: [opened, reopened, synchronize, edited]
+      init:
+        commit-sha: ${{ event.git.sha }}
+        base-ref: ${{ event.github.pull_request.pull_request.base.ref }}
+        pr-body: ${{ event.github.pull_request.pull_request.body }}
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.4.1
+    with:
+      repository: https://github.com/elviskahoro/oss-hq.git
+      ref: ${{ init.commit-sha }}
+      preserve-git-dir: true
+      fetch-full-depth: true
+
+  - key: check
+    use: code
+    env:
+      PR_BODY: ${{ init.pr-body }}
+      BASE_REF: ${{ init.base-ref }}
+      HEAD_SHA: ${{ init.commit-sha }}
+    run: |
+      git fetch origin "$BASE_REF"
+      scripts/check-no-attribution.sh "origin/$BASE_REF" "$HEAD_SHA"
