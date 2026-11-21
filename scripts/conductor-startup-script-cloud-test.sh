@@ -13,6 +13,9 @@
 #
 # Scope (issue #185: the script only provisions sandbox CLIs):
 #   - shadow-safety facts for the python3.13 shim over AL2023's 3.9
+#   - prerequisite gate: the image has no tar, so RUN 1 exercises
+#     ensure_archive_tools (dnf-installs tar/gzip as non-root via sudo); RUN 2
+#     covers its already-present short-circuit
 #   - RUN 1: fresh run, no RWX_ACCESS_TOKEN: rwx, infisical, resend, entire
 #     (+ git-remote-entire), uv and python3.13 resolve under /usr/local/bin at
 #     their pins, /usr/bin/python3 stays 3.9, dnf still works, the no-token WARN
@@ -45,7 +48,11 @@ STARTUP_SCRIPT="/src/scripts/conductor-startup-script-cloud.sh"
 
 fail() { echo "TEST FAIL: $*" >&2; exit 1; }
 
-dnf install -y sudo shadow-utils util-linux tar >/dev/null
+# tar is deliberately NOT installed here: stock amazonlinux:2023 omits it, so
+# RUN 1 makes the startup script's ensure_archive_tools install it back (as
+# sandbox-user via sudo). If a future image ships tar, remove it before RUN 1.
+dnf install -y sudo shadow-utils util-linux >/dev/null
+command -v tar >/dev/null 2>&1 && fail "tar present before RUN 1; the prerequisite gate would go untested"
 useradd -m sandbox-user
 echo "sandbox-user ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/sandbox-user
 chmod 440 /etc/sudoers.d/sandbox-user
@@ -100,6 +107,7 @@ su - sandbox-user -c "
   pin() { sed -n \"s/^\$1=\\\"\([^\\\"]*\)\\\".*/\\1/p\" ${STARTUP_SCRIPT}; }
   at_local_bin() { [ \"\$(command -v \$1)\" = \"/usr/local/bin/\$1\" ] || fail \"\$1 resolved to \$(command -v \$1)\"; }
 
+  command -v tar >/dev/null || fail \"tar missing after startup: ensure_archive_tools did not install it\"
   at_local_bin python3
   python3 --version 2>&1 | grep -q '^Python 3\.13\.' || fail \"python3 is not 3.13: \$(python3 --version 2>&1)\"
   pip3 --version 2>&1 | grep -q 'python 3\.13' || fail \"pip3 does not run on python 3.13: \$(pip3 --version 2>&1)\"
