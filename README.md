@@ -121,9 +121,9 @@ stale copy before an agent follows it.
 ### Code-dev tooling runs on RWX
 
 The startup script provisions only the sandbox CLIs (rwx, infisical, resend,
-entire, uv, Python 3.13). Code-dev tooling such as pytest, ruff, and roborev
-runs through RWX tasks instead of being installed in workspaces. Adding the setup to a project that doesn't need them should cost
-nothing.
+entire, uv, Python 3.13). Code-dev tooling such as pytest and roborev runs
+through RWX tasks instead of being installed in workspaces. Adding the setup
+to a project that doesn't need them should cost nothing.
 
 ### Secrets stay out of the repo
 
@@ -158,7 +158,7 @@ These tools aren't steps in the flow, but they keep it running smoothly:
 - **[Flox](https://flox.dev)** resolves one manifest into one lock file, so
   your laptop, CI, and every agent's sandbox run exactly the same software,
   built from prebuilt packages instead of compiled on a fragile machine.
-- **uv** is the one Python tool provisioned in sandboxes; pytest, ruff, and the
+- **uv** is the one Python tool provisioned in sandboxes; pytest and the
   rest run through RWX tasks.
 
 ## Where to go next
