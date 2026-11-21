@@ -47,4 +47,4 @@ The test exits non-zero on the first broken assertion; the last lines say which.
 - **No qemu emulation (issue #92).** The test aborts with `running under qemu-... emulation` because the pinned Go binaries crash or hang under it. On an Apple Silicon Colima VM, `--platform linux/amd64` is emulated, so it will hit this guard. Either start Colima with an x86_64 VM (`colima start --arch x86_64`, itself emulated, so likely the same guard) or drop `--platform` to run natively on arm64. Prefer apple/container above, which is verified native arm64; if that fails for a script reason, rely on CI.
 - **CI is the authoritative run** (x86_64 runner). Check it with `gh pr checks <PR>`.
 - Also run `bash scripts/validate-pins.sh` on the host; it needs no container and checks the startup script's pins and sha256s plus the roborev pin against the Flox manifests.
-- After a pin bump, copy the new per-platform sha256s from the release's checksums verbatim; never retype them.
+- After a pin bump, copy the new per-platform sha256s from the release's checksums where one is published (infisical, resend); hand-hash the tarballs otherwise (rwx, entire, uv) — never retype them.
