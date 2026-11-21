@@ -71,7 +71,7 @@ Repos should hold pointers, not copies: `install-conductor-prompts.py --pointers
 
 ### Reporting to Linear
 
-[`.rwx/report-to-linear.yml`](.rwx/report-to-linear.yml) creates or comments on a Linear issue (deduped by `key`) so checks like `check-closed-issues` can report to Linear. Logic lives in `ci/` (`ci/main.py linear-report`, a plain Dagger program); needs vault secret `LINEAR_API_KEY`. Run: `rwx run .rwx/report-to-linear.yml --init key=<key> --init title=<t> --init body=<b>`. Dagger must run in RWX, not in Conductor sandboxes.
+Reporting findings to Linear moved to the `ai` repo: `.rwx/report-to-linear.yml` there (`rwx run` it from `SanhedrinTech/ai`, with `--init repo=oss-hq`).
 
 ## Working issues and labels
 

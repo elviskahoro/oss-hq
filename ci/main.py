@@ -1,10 +1,8 @@
-"""Dagger program: report a finding to Linear (create or comment, deduped).
+"""Dagger program: dispatch open issues to Conductor workspaces.
 
-    LINEAR_API_KEY=... LINEAR_TEAM=AI REPORT_KEY=check-closed-issues \
-    REPORT_TITLE="..." REPORT_BODY="..." uv run dagger run python ci/main.py linear-report
+    GITHUB_TOKEN=... uv run dagger run python ci/main.py dispatch-issues
 
-Dagger can't run in Conductor sandboxes; run it in RWX (.rwx/report-to-linear.yml).
-The API key is passed as a Dagger Secret and never printed.
+Dagger can't run in Conductor sandboxes; run it in RWX (.rwx/dispatch-issues.yml).
 """
 from __future__ import annotations
 
@@ -16,20 +14,6 @@ import dagger
 from dagger import dag
 
 IMAGE = "python:3.12-slim"
-
-
-async def linear_report() -> None:
-    cfg = {k: os.environ[k] for k in ("LINEAR_TEAM", "REPORT_KEY", "REPORT_TITLE", "REPORT_BODY")}
-    key = dag.set_secret("linear-api-key", os.environ["LINEAR_API_KEY"])
-    script = dag.host().file("ci/linear_report.py")
-    ctr = (
-        dag.container().from_(IMAGE)
-        .with_file("/ci/linear_report.py", script)
-        .with_secret_variable("LINEAR_API_KEY", key)
-    )
-    for k, v in cfg.items():
-        ctr = ctr.with_env_variable(k, v)
-    print(await ctr.with_exec(["python", "/ci/linear_report.py"]).stdout())
 
 
 async def dispatch_issues() -> None:
@@ -51,7 +35,7 @@ async def dispatch_issues() -> None:
     print(await ctr.with_exec(["python", "/ci/dispatch_issues.py"]).stdout())
 
 
-COMMANDS = {"linear-report": linear_report, "dispatch-issues": dispatch_issues}
+COMMANDS = {"dispatch-issues": dispatch_issues}
 
 
 async def main() -> int:
