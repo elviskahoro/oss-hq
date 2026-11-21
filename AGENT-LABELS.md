@@ -13,7 +13,7 @@ mk() { gh label create "$1" --color "$2" --description "$3" --force; }
 mk "status::in_progress" fbca04 "Claimed and being worked on by an agent. Do not pick up."
 mk "status::blocked"     b60205 "Waiting on another issue (see 'blocked by #N')."
 mk "status::deferred"    c5def5 "Parked on purpose; revisit date in a comment."
-mk "needs-human"         d93f0b "A person must decide. Agents must not pick up."
+mk "needs-human"         d93f0b "A person must decide. Agents must not pick up on their own; if dispatched at the user's direction, ask first."
 mk "status::blocked-external" 5319e7 "Waiting on something outside the repo (another repo, upstream, a vendor)."
 mk "gas-city"            1d76db "Routed to Gas City. Conductor dispatch must not pick up."
 mk "agent-ready"         0e8a16 "Triaged and safe for an agent to pick up."
@@ -41,7 +41,7 @@ https://github.com/elviskahoro/oss-hq/blob/main/AGENT-LABELS.md
 | `status::in_progress` | Claimed and being worked on. Don't pick up. The holder (id, branch, UTC time) is in the claim comment. |
 | `status::blocked` | Waiting on another issue. Body or comment must say `blocked by #N`. |
 | `status::deferred` | Parked on purpose. Revisit date goes in a comment. |
-| `needs-human` | A person must decide. Don't pick up. |
+| `needs-human` | A person must decide. Agents must not pick these up on their own; when dispatched onto one at the user's direction, ask the user for the decision before proceeding. |
 | `status::blocked-external` | Waiting on something outside the repo (another repo, upstream, a vendor). Say what in a comment. |
 | `gas-city` | Routed to Gas City; Conductor dispatch skips it. |
 | `agent-ready` | Optional: triaged, unblocked, safe to pick up. |
