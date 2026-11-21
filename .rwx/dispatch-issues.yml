@@ -1,0 +1,48 @@
+# List open issues for a subset of repos and open a Conductor workspace per issue (Dagger).
+# Dry-run by default. Create for real with --init run=1; cap with --init limit=1 first.
+# Run: rwx run .rwx/dispatch-issues.yml --init repos="owner/a,owner/b" [--init label=bug] [--init limit=1] [--init skip_labels=a,b*] [--init run=1] --wait
+# Issues with a skip label are not dispatched (default list in ci/dispatch_issues.py; empty skip_labels uses it).
+# Vault secrets: GITHUB_ISSUES_TOKEN (issues read), CONDUCTOR_API_KEY. Never printed.
+on:
+  cli:
+    init:
+      commit-sha: ${{ event.git.sha }}
+      repos: ""
+      label: ""
+      limit: "0"
+      skip_labels: ""
+      run: "0"
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.4.1
+    with:
+      repository: https://github.com/elviskahoro/oss-hq.git
+      ref: ${{ init.commit-sha }}
+
+  - key: uv
+    run: |
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  - key: dagger-cli
+    run: |
+      curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+      echo "$HOME/.local/bin" >> "$RWX_ENV/PATH"
+
+  - key: dispatch-issues
+    use: [code, uv, dagger-cli]
+    docker: true
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_ISSUES_TOKEN }}
+      CONDUCTOR_API_KEY: ${{ secrets.CONDUCTOR_API_KEY }}
+      ISSUE_REPOS: ${{ init.repos }}
+      ISSUE_LABEL: ${{ init.label }}
+      ISSUE_LIMIT: ${{ init.limit }}
+      SKIP_LABELS: ${{ init.skip_labels }}
+      DISPATCH_RUN: ${{ init.run }}
+    run: uv run dagger run python ci/main.py dispatch-issues

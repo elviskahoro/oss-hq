@@ -32,7 +32,45 @@ async def linear_report() -> None:
     print(await ctr.with_exec(["python", "/ci/linear_report.py"]).stdout())
 
 
-COMMANDS = {"linear-report": linear_report}
+async def issues_manifest() -> None:
+    """Write manifest.json of open issues to $ISSUES_MANIFEST_OUT (default tmp/issues-manifest/manifest.json)."""
+    token = dag.set_secret("github-token", os.environ["GITHUB_TOKEN"])
+    ctr = (
+        dag.container().from_(IMAGE)
+        .with_file("/ci/issues_manifest.py", dag.host().file("ci/issues_manifest.py"))
+        .with_secret_variable("GITHUB_TOKEN", token)
+        .with_env_variable("ISSUE_REPOS", os.environ["ISSUE_REPOS"])
+        .with_env_variable("ISSUE_LABEL", os.environ.get("ISSUE_LABEL", ""))
+        .with_env_variable("ISSUE_OUT", "/out/manifest.json")
+        .with_exec(["mkdir", "-p", "/out"])
+        .with_exec(["python", "/ci/issues_manifest.py"])
+    )
+    out = os.environ.get("ISSUES_MANIFEST_OUT", "tmp/issues-manifest/manifest.json")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    await ctr.file("/out/manifest.json").export(out)
+    print(f"wrote {out}")
+
+
+async def dispatch_issues() -> None:
+    """List open issues and open a Conductor workspace per issue (dry-run unless DISPATCH_RUN=1)."""
+    ctr = (
+        dag.container().from_(IMAGE)
+        .with_file("/ci/issues_manifest.py", dag.host().file("ci/issues_manifest.py"))
+        .with_file("/ci/dispatch_issues.py", dag.host().file("ci/dispatch_issues.py"))
+        .with_file("/ci/create-pr.md", dag.host().file("prompts/conductor/create-pr.md"))
+        .with_secret_variable("GITHUB_TOKEN", dag.set_secret("github-token", os.environ["GITHUB_TOKEN"]))
+        .with_env_variable("PR_TEMPLATE", "/ci/create-pr.md")
+        .with_workdir("/ci")
+    )
+    for k in ("ISSUE_REPOS", "ISSUE_LABEL", "ISSUE_LIMIT", "DISPATCH_RUN", "SKIP_LABELS"):
+        ctr = ctr.with_env_variable(k, os.environ.get(k, ""))
+    if os.environ.get("DISPATCH_RUN") == "1":
+        key = dag.set_secret("conductor-api-key", os.environ["CONDUCTOR_API_KEY"])
+        ctr = ctr.with_secret_variable("CONDUCTOR_API_KEY", key)
+    print(await ctr.with_exec(["python", "/ci/dispatch_issues.py"]).stdout())
+
+
+COMMANDS = {"linear-report": linear_report, "issues-manifest": issues_manifest, "dispatch-issues": dispatch_issues}
 
 
 async def main() -> int:
