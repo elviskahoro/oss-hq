@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Dispatch one Conductor workspace per OWNER repo to re-install the oss-hq
-# Conductor prompts (prompts/conductor/*.md) into its .conductor/settings.toml.
-# Prompts are copied, not referenced, so a change to oss-hq reaches a repo only
-# when its copy is re-installed. Run after the oss-hq change is merged to main.
+# Dispatch one Conductor workspace per OWNER repo to replace its embedded copies
+# of the oss-hq Conductor prompts with pointers (installer --pointers): short
+# stubs that fetch prompts/conductor/*.md from oss-hq main, so later oss-hq
+# changes reach the repo with no re-install. Run after the installer's
+# --pointers mode is on oss-hq main.
 # Dry-run by default; pass --run to create workspaces.
 # Usage: dispatch-conductor-prompts.sh [--run] [--owner OWNER] [REPO ...]
 #   No REPO args: discover owner repos whose .conductor/settings.toml has create_pr.
@@ -53,11 +54,11 @@ for repo in "${repos[@]}"; do
   [[ $repo == */* ]] || repo="$owner/$repo"
   msg="$tmp/prompts_${repo//\//_}.md"
   {
-    echo "Re-install the standard Conductor prompts from oss-hq into this repo; oss-hq's create-pr prompt gained an issue-claim gate and claim release."
+    echo "Replace this repo's embedded Conductor prompt copies with pointers to oss-hq, so prompt changes (e.g. the create-pr issue-claim gate) reach it with no re-install."
     echo
-    echo "- git clone --depth 1 https://github.com/$owner/oss-hq /tmp/oss-hq, then from this repo's root: \`uv run --no-project --with \"tomlkit>=0.15.1\" /tmp/oss-hq/scripts/install-conductor-prompts.py\` (add \`--local\` if this repo keeps prompts in settings.local.toml)."
+    echo "- git clone --depth 1 https://github.com/$owner/oss-hq /tmp/oss-hq, then from this repo's root: \`uv run --no-project --with \"tomlkit>=0.15.1\" /tmp/oss-hq/scripts/install-conductor-prompts.py --pointers\` (add \`--local\` if this repo keeps prompts in settings.local.toml)."
     echo "- Check \`git diff\` touches only the [prompts] table; keep unrelated settings."
-    echo "- Run \`install-conductor-prompts.py --check\` to confirm no drift. Keep any repo-specific edits the repo already carries (the repo wins on conflict)."
+    echo "- Run it again with \`--check --pointers\` to confirm. Keep \`rename_branch\` and any other non-standard keys; if the old [prompts] table was installer-managed, make sure they were not removed. If the repo carries repo-specific edits to a prompt, say so in the PR instead of dropping them."
     echo "- Then open the PR following the create-pr prompt."
   } >"$msg"
   short=${repo#*/}
