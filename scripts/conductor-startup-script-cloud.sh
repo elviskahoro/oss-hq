@@ -22,7 +22,7 @@
 # Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> railway -> entire
 # (with git-remote-entire, which git needs on PATH for entire:// remotes) ->
 # python3.13 installed ALONGSIDE 3.9 via dnf on AL2023 (SKIP elsewhere) ->
-# uv (pinned, checksum-verified) -> gws/gtm CLIs -> optional gtm-sdk dependency
+# uv (pinned, checksum-verified) -> gws credentials + gtm CLIs -> optional gtm-sdk dependency
 # recovery -> rwx auth (token validated BEFORE it is persisted, so a bad token
 # never overwrites a good one).
 #
