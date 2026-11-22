@@ -14,7 +14,7 @@ exec >> "$SETUP_LOG" 2>&1
 echo "=== setup started $(date -u +%FT%TZ) ==="
 
 # The single workspace startup script: pinned rwx (+ auth), infisical, resend,
-# entire, uv, and Python 3.13 for this sandbox class (AL2023 ships python3=3.9).
+# railway, entire, uv, and Python 3.13 for this sandbox class (AL2023 ships python3=3.9).
 # Code-dev tooling (roborev, pytest, reflex, ruff, pyright, pyrefly) runs as
 # RWX tasks, not here (issue #185). Every stage failure is fatal, but setup
 # tolerates the exit here so the harness still runs, and fails at the very end.

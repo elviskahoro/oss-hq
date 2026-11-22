@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2312  # $(...) in assignments and rows: stage failures surface through the stages' own || returns and the summary, not by killing the script mid-row
 # The single Conductor workspace startup script: the sandbox CLIs agents
-# call directly (rwx + auth, infisical, resend, entire, uv) plus Python 3.13.
+# call directly (rwx + auth, infisical, resend, railway, entire, uv) plus Python 3.13.
 # Code-dev tooling (roborev, pytest, reflex, ruff, pyright, pyrefly, trunk)
 # is NOT installed here; it runs as RWX tasks (issue #185, see
 # skills/conductor-startup-script).
@@ -17,13 +17,13 @@
 #        bash scripts/conductor-startup-script-cloud.sh
 #      Repo-agnostic by design: no repo paths or scripts.
 #
-# Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> entire
+# Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> railway -> entire
 # (with git-remote-entire, which git needs on PATH for entire:// remotes) ->
 # python3.13 installed ALONGSIDE 3.9 via dnf on AL2023 (SKIP elsewhere) ->
 # uv (pinned, checksum-verified) -> rwx auth (token validated BEFORE it is
 # persisted, so a bad token never overwrites a good one).
 #
-# Pins: RWX_PIN/INFISICAL_PIN/RESEND_PIN/ENTIRE_PIN/UV_PIN and every sha256
+# Pins: RWX_PIN/INFISICAL_PIN/RESEND_PIN/RAILWAY_PIN/ENTIRE_PIN/UV_PIN and every sha256
 # are the single in-repo home of those constants; scripts/validate-pins.sh
 # checks them (uv is also cross-checked against envs/prebuilt and
 # envs/floxhub-provision). Bump: new pin + sha256s from the release's
@@ -495,6 +495,69 @@ resend_install() {
   record PASS resend "v${RESEND_PIN} (${path})"
 }
 
+# --- railway ----------------------------------------------------------------
+# Pinned release binary (static musl on Linux), fail-closed sha256 from the
+# GitHub release asset digests. Reuse-if-present; never shadows a host install.
+# Bump runbook: new pin + sha256s from
+# `gh release view v<pin> -R railwayapp/cli --json assets`.
+RAILWAY_PIN="5.75.0"
+
+railway_install() {
+  if command -v railway >/dev/null 2>&1; then
+    record PASS railway "reused $(command -v railway) ($(railway --version 2>&1 | head -1 || true))"
+    return 0
+  fi
+  local target sha256
+  case "$(uname -s)-$(uname -m)" in
+  Linux-x86_64)
+    target="x86_64-unknown-linux-musl"
+    sha256="ba5d9fb5dce1c59789f4216e6b754becd75025ed740388452be55aae83720400"
+    ;;
+  Linux-aarch64)
+    target="aarch64-unknown-linux-musl"
+    sha256="963a51fe20772e3fd6006f820842865c7fb901f3a23841f462470913fe23e9b7"
+    ;;
+  Darwin-arm64)
+    target="aarch64-apple-darwin"
+    sha256="a56bf201b0963de226a2f93d6445dd75392c530c8dc020c803d737b32a7b9288"
+    ;;
+  Darwin-x86_64)
+    target="x86_64-apple-darwin"
+    sha256="701fd07f33eae1df9d22402c33f7a0adbd550fab74e04b3f4b2c999340673f77"
+    ;;
+  *)
+    log "error: no pinned railway asset for $(uname -s)-$(uname -m)"
+    return 1
+    ;;
+  esac
+  local asset="railway-v${RAILWAY_PIN}-${target}.tar.gz"
+  local dir="${WORK}/railway"
+  mkdir -p "${dir}"
+  if ! curl -fsSLo "${dir}/${asset}" "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_PIN}/${asset}"; then
+    return 1
+  fi
+  if ! checksum_verify "${sha256}" "${dir}/${asset}"; then
+    return 1
+  fi
+  if ! tar -xzf "${dir}/${asset}" -C "${dir}" railway || [[ ! -x "${dir}/railway" ]]; then
+    log "error: railway tarball did not yield an executable ./railway"
+    return 1
+  fi
+  local path
+  path="$(install_bin "${dir}/railway" railway || true)"
+  if [[ -z "${path}" ]]; then
+    log "error: could not place the railway binary in a bin directory"
+    return 1
+  fi
+  note_placement "${path}"
+  hash -r 2>/dev/null || true
+  if ! command -v railway >/dev/null 2>&1; then
+    log "error: railway installed at ${path} but not on PATH"
+    return 1
+  fi
+  record PASS railway "v${RAILWAY_PIN} (${path})"
+}
+
 # --- python3.13 -------------------------------------------------------------
 # Installed ALONGSIDE the AL2023 default 3.9, never as a replacement: dnf's
 # shebang is the absolute #!/usr/bin/python3, so a /usr/local/bin/python3
@@ -653,6 +716,7 @@ if ensure_archive_tools; then :; else record FAIL prereqs "tar/gzip unavailable 
 if rwx_install; then :; else record FAIL rwx "provisioning failed — see messages above"; FAILED=1; fi
 if infisical_install; then :; else record FAIL infisical "provisioning failed — see messages above"; FAILED=1; fi
 if resend_install; then :; else record FAIL resend "provisioning failed — see messages above"; FAILED=1; fi
+if railway_install; then :; else record FAIL railway "provisioning failed — see messages above"; FAILED=1; fi
 # entire: operator-driven `entire enable` is never run here (a per-repo decision).
 if entire_install; then :; else record FAIL entire "provisioning failed — see messages above"; FAILED=1; fi
 if python313_stage; then :; else record FAIL python3.13 "provisioning failed — see messages above"; FAILED=1; fi

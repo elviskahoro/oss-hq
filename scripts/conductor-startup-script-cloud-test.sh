@@ -16,7 +16,7 @@
 #   - prerequisite gate: the image has no tar, so RUN 1 exercises
 #     ensure_archive_tools (dnf-installs tar/gzip as non-root via sudo); RUN 2
 #     covers its already-present short-circuit
-#   - RUN 1: fresh run, no RWX_ACCESS_TOKEN: rwx, infisical, resend, entire
+#   - RUN 1: fresh run, no RWX_ACCESS_TOKEN: rwx, infisical, resend, railway, entire
 #     (+ git-remote-entire), uv and python3.13 resolve under /usr/local/bin at
 #     their pins, /usr/bin/python3 stays 3.9, dnf still works, the no-token WARN
 #     row is present, and there are no FAIL rows. Dropped stages (roborev, pi,
@@ -93,7 +93,7 @@ case "${RUN1_OUTPUT}" in
 *" | FAIL |"*) fail "fresh run recorded FAIL row(s)" ;;
 esac
 case "${RUN1_OUTPUT}" in *"RWX_ACCESS_TOKEN not set"*) ;; *) fail "fresh run missing the no-token WARN row" ;; esac
-for stage in rwx infisical resend entire python3.13 uv; do
+for stage in rwx infisical resend railway entire python3.13 uv; do
   case "${RUN1_OUTPUT}" in *" ${stage} | PASS |"*) ;; *) fail "fresh run missing a PASS row for ${stage}" ;; esac
 done
 for gone in roborev pi pytools python3.11; do
@@ -123,6 +123,10 @@ su - sandbox-user -c "
   at_local_bin resend
   out=\"\$(resend --version 2>&1)\" || true
   printf '%s' \"\${out}\" | grep -q \"\$(pin RESEND_PIN)\" || fail \"resend does not report the pin: \${out}\"
+
+  at_local_bin railway
+  out=\"\$(railway --version 2>&1)\" || true
+  printf '%s' \"\${out}\" | grep -q \"\$(pin RAILWAY_PIN)\" || fail \"railway does not report the pin: \${out}\"
 
   at_local_bin entire
   out=\"\$(entire version 2>&1)\" || true
