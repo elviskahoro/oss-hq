@@ -137,6 +137,28 @@ else
   fail "railway sha256" "expected >=3 valid platform hashes, got ${RAILWAY_N} (bad=${RAILWAY_BAD})"
 fi
 
+# 6c. OZ_PIN + the per-arch sha256s in oz_install(): the pin is the exact
+# oz-stable package version (dotted, ending in .stable.NN) and both Linux
+# hashes must be 64-char hex.
+OZ_PIN_VALUE="$(sed -n 's/^OZ_PIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
+if [[ "${OZ_PIN_VALUE}" =~ ^0\.[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.stable\.[0-9]{2}$ ]]; then
+  pass "OZ_PIN" "exact pin ${OZ_PIN_VALUE}"
+else
+  fail "OZ_PIN" "missing or not an exact oz-stable version: ${OZ_PIN_VALUE:-<missing>}"
+fi
+awk '/^oz_install\(\)/,/^}$/' "${STARTUP}" | sed -n 's/^ *sha256="\([^"]*\)".*/\1/p' >"${WORK}/oz_hashes"
+OZ_BAD=0
+OZ_N=0
+while IFS= read -r h; do
+  OZ_N=$((OZ_N + 1))
+  [[ "${h}" =~ ^[0-9a-f]{64}$ ]] || OZ_BAD=1
+done <"${WORK}/oz_hashes"
+if [[ ${OZ_N} -ge 2 && ${OZ_BAD} -eq 0 ]]; then
+  pass "oz sha256" "${OZ_N} platform hashes, all 64-char hex"
+else
+  fail "oz sha256" "expected >=2 valid platform hashes, got ${OZ_N} (bad=${OZ_BAD})"
+fi
+
 # 9. ENTIRE_PIN + ENTIRE_SHA256_* (issue #91). ENTIRE_PIN must be a
 # non-floating x.y.z, exactly like RESEND_PIN. The four per-platform SHA256
 # constants must each be present and a 64-char lowercase hex string — the
