@@ -114,13 +114,11 @@ git log "origin/<confirmed-base>"..HEAD --oneline
 - If the branch already has a single commit (or each existing commit is independently reviewable and ordered), skip the rebase but still confirm the count before moving on. If the branch is already published, preserve its history and use follow-up commits for review fixes; include the multi-commit history in the final handoff.
 - Prefer squashing *before* the first push; squashing after publication needs a force-push (`--force-with-lease`), which you do without asking.
 
-### Step 5: Run relevant tests locally, then roborev review before publishing
+### Step 5: Run roborev review before publishing
 
-**Roborev reviews the diff; it does not execute the test suite.** A clean roborev pass says nothing about whether the code runs — it has caught logic/quality issues while a hardcoded assertion in a test file was still broken. Before roborev, run whatever tests cover the changed files:
+**Roborev is the only pipeline required before a push.** Tests, trunk-check and integration run as PR checks and are watched after the push (Step 13); do not run them as a pre-push gate. Roborev is dispatch-only (it does not run on the PR), so it has to happen first.
 
-- Identify affected tests by mirroring the changed path under `tests/` (many repos mirror source layout — a change to `pkg/foo.py` often has a matching `tests/.../test_foo.py`) and/or `grep -rn` the changed file's distinctive strings (a literal like an `if:` condition, a flag name) across `tests/` to catch assertions on exact values.
-- Run the narrowest test target that covers the change (in a uv-based Python repo, `uv run pytest tests/<mirrored-path>`; otherwise the repo's own test command) — full-suite runs are fine too, but don't skip this step because CI will "catch it anyway": local runs take seconds, CI takes minutes.
-- If a test fails, fix it now and fold the fix into the same commit (Step 3/4), *before* running roborev — don't push and let CI discover it.
+**Roborev reviews the diff; it does not execute the test suite.** While developing, run a focused local test for the changed files when it helps (for example `uv run pytest tests/<mirrored-path>` in a uv-based Python repo); that is optional verification, not a gate. If a test fails, fold the fix into the same commit (Step 3/4) before roborev.
 
 **Hard gate: do not publish or move toward `git push` until Roborev reports clean, or the user explicitly accepts the reported findings.** The original PR request alone does not accept findings. This applies even if the change feels trivial, even if the diff is one line, and even if the user has not asked for review explicitly. A preview-only request stops before this review; an authorized publish request runs it before pushing.
 
@@ -253,7 +251,7 @@ Rebasing a branch that is already on a remote would rewrite published history an
 
 Run `git fetch origin` (stop if it fails), then `git rebase origin/<confirmed-base>` for an unpublished branch, or `git merge origin/<confirmed-base>` for a published branch that needs a base update.
 
-- If the rebase or merge is clean, run the required checks and review, then proceed to Step 11. If it hits conflicts, **stop and surface them to the user.** Resolve them (or have the user resolve them), then rerun the relevant checks and `rwx run .rwx/roborev.yml --wait` so the review reflects the updated history. Never skip or abandon conflicting changes silently.
+- If the rebase or merge is clean, run `rwx run .rwx/roborev.yml --wait`, then proceed to Step 11. If it hits conflicts, **stop and surface them to the user.** Resolve them (or have the user resolve them), then rerun `rwx run .rwx/roborev.yml --wait` so the review reflects the updated history. Never skip or abandon conflicting changes silently.
 - If no base update is needed, proceed to Step 11.
 
 ### Step 11: Push the branch
