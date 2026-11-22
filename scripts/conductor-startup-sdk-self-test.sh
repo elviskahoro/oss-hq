@@ -156,8 +156,8 @@ if ! grep -Fq 'PASS | gtm-sdk-deps' "${WORK}/git-source-output"; then
   echo "SDK self-test failed: git-source sync did not record PASS" >&2
   exit 1
 fi
-# shellcheck disable=SC2016  # the single-quoted program is evaluated by the inner bash
-if (cd "${git_fixture}" && env -u GTM_SDK_GITHUB_TOKEN bash -c 'source "$1"; record() { :; }; log() { :; }; gtm_sdk_dependency_repair' _ "${function_file}") >/dev/null 2>&1; then
+# shellcheck disable=SC2016,SC2031  # the single-quoted program is evaluated by the inner bash
+if (cd "${git_fixture}" && env -u GTM_SDK_GITHUB_TOKEN "PATH=${git_bin}:${PATH}" bash -c 'source "$1"; record() { :; }; log() { :; }; gtm_sdk_dependency_repair' _ "${function_file}") >/dev/null 2>&1; then
   echo "SDK self-test failed: git-source sync must fail without GTM_SDK_GITHUB_TOKEN" >&2
   exit 1
 fi
