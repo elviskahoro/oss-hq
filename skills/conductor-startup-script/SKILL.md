@@ -5,7 +5,7 @@ description: Use when provisioning a Conductor cloud workspace with scripts/cond
 
 # The Conductor startup script
 
-`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs only the CLIs agents call directly (pinned, checksum-verified): rwx (plus token validation), infisical, resend, railway, entire (with `git-remote-entire`), and uv, plus the gws CLI (npm `@googleworkspace/cli`, credentials written from `GWS_CREDENTIALS` to `~/.config/gws/credentials.json`) and `gtm-linear`/`gtm-attio` (uv pip, version floors, not checksum-pinned; SKIP without npm/uv/sudo), plus Python 3.13 on the AL2023 sandbox class (its system python3 is 3.9; 3.13 is installed alongside it via dnf). Every stage failure is fatal: a missing CLI fails setup loudly (after all stages report). Code-dev tooling runs as RWX tasks (issue #185); see "Where the moved tools run".
+`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs only the CLIs agents call directly (pinned, checksum-verified): rwx (plus token validation), infisical, resend, railway, entire (with `git-remote-entire`), and uv, plus `gtm-linear`/`gtm-attio` (uv pip, version floors, not checksum-pinned; SKIP without uv/sudo), plus Python 3.13 on the AL2023 sandbox class (its system python3 is 3.9; 3.13 is installed alongside it via dnf). Every stage failure is fatal: a missing CLI fails setup loudly (after all stages report). Code-dev tooling runs as RWX tasks (issue #185); see "Where the moved tools run".
 
 For snapshot-build 403s or paste failures, use `conductor-cloud-startup-script-debugging`. To run the container test, use `run-startup-script-tests`.
 
@@ -31,6 +31,7 @@ Paste-safety: the file must contain no triple double quotes and no backslash lin
 Set these in the repo's Conductor environment variables, never inline in the script. `.env.cloud` is a template you can fill in and copy over.
 
 - `RWX_ACCESS_TOKEN`: validated before it's written atomically to `~/.config/rwx/accesstoken`, so a bad token never overwrites a good one.
+- `GTM_SDK_GITHUB_TOKEN`: optional for ordinary workspaces. In a repository whose locked Python project references `gtm-sdk/cli`, it authenticates initialization of the private `gtm-sdk` submodule and enables a late `uv sync --dev --frozen --python 3.13` retry. It is used only by a temporary Git credential helper and is not persisted. Because Conductor runs this pasted setup script after automatic mise dependency installation, a successful retry may install dependencies without clearing an earlier preparation-stage failure; verify the overall preparation result separately.
 
 ## Where the moved tools run
 

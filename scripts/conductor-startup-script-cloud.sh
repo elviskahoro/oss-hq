@@ -15,14 +15,16 @@
 #      Conductor has no API for that field; fixes land in THIS file only and
 #      the paste is a hand-refreshed snapshot. Also runs standalone:
 #        bash scripts/conductor-startup-script-cloud.sh
-#      Repo-agnostic by design: no repo paths or scripts.
+#      Repo-agnostic by design: the optional SDK recovery only activates when
+#      the locked project references gtm-sdk/cli; no consumer path is assumed.
 #
-# Also: gws (npm) + gtm-linear/gtm-attio (uv pip) after uv, plus gws credentials.
+# Also: gtm-linear/gtm-attio (uv pip) after uv.
 # Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> railway -> entire
 # (with git-remote-entire, which git needs on PATH for entire:// remotes) ->
 # python3.13 installed ALONGSIDE 3.9 via dnf on AL2023 (SKIP elsewhere) ->
-# uv (pinned, checksum-verified) -> rwx auth (token validated BEFORE it is
-# persisted, so a bad token never overwrites a good one).
+# uv (pinned, checksum-verified) -> gtm CLIs -> optional gtm-sdk dependency
+# recovery -> rwx auth (token validated BEFORE it is persisted, so a bad token
+# never overwrites a good one).
 #
 # Pins: RWX_PIN/INFISICAL_PIN/RESEND_PIN/RAILWAY_PIN/ENTIRE_PIN/UV_PIN and every sha256
 # are the single in-repo home of those constants; scripts/validate-pins.sh
@@ -677,12 +679,11 @@ rwx_auth() {
   return 0
 }
 
-# --- gws + gtm CLIs ----------------------------------------------------------
-# Mirrors the Warp/Oz setup script. gws (@googleworkspace/cli) comes from npm
-# and reads ~/.config/gws/credentials.json, written from GWS_CREDENTIALS (never
-# printed). gtm-linear/gtm-attio come from PyPI via uv into the system python.
-# Both are floors, not exact pins, so unlike the tarball stages they are not
-# checksum-verified. sudo only when not root and passwordless sudo exists.
+# --- gtm CLIs -----------------------------------------------------------------
+# Mirrors the Warp/Oz setup script. gtm-linear/gtm-attio come from PyPI via uv
+# into the system python. They are floors, not exact pins, so unlike the
+# tarball stages they are not checksum-verified. sudo only when not root and
+# passwordless sudo exists.
 GTM_LINEAR_MIN="0.3.0"
 GTM_ATTIO_MIN="0.26.1"
 
@@ -694,46 +695,6 @@ priv_cmd() { # echoes "sudo" when needed, "" when root; returns 1 when neither w
   else
     return 1
   fi
-}
-
-gws_credentials() {
-  if [[ -z "${GWS_CREDENTIALS:-}" ]]; then
-    record WARN gws-credentials "GWS_CREDENTIALS not set — skipped writing ~/.config/gws/credentials.json"
-    return 0
-  fi
-  mkdir -p "${HOME}/.config/gws"
-  if (umask 077; printf '%s' "${GWS_CREDENTIALS}" > "${HOME}/.config/gws/credentials.json"); then
-    record PASS gws-credentials "wrote ~/.config/gws/credentials.json from GWS_CREDENTIALS"
-  else
-    record FAIL gws-credentials "could not write ~/.config/gws/credentials.json"
-    return 1
-  fi
-}
-
-gws_install() {
-  if command -v gws >/dev/null 2>&1; then
-    record PASS gws "reused $(command -v gws)"
-    return 0
-  fi
-  if ! command -v npm >/dev/null 2>&1; then
-    record SKIP gws "npm not found; cannot install @googleworkspace/cli here, continuing"
-    return 0
-  fi
-  local sudo_cmd
-  if ! sudo_cmd="$(priv_cmd)"; then
-    record SKIP gws "no root or passwordless sudo for npm install -g, continuing"
-    return 0
-  fi
-  if ! ${sudo_cmd} npm install -g @googleworkspace/cli; then
-    log "error: npm install -g @googleworkspace/cli failed"
-    return 1
-  fi
-  hash -r 2>/dev/null || true
-  if ! command -v gws >/dev/null 2>&1; then
-    log "error: @googleworkspace/cli installed but gws is not on PATH"
-    return 1
-  fi
-  record PASS gws "installed $(command -v gws)"
 }
 
 gtm_install() {
@@ -755,6 +716,150 @@ gtm_install() {
   lv="$(gtm-linear --version 2>&1 | head -1)" || { log "error: gtm-linear --version failed"; return 1; }
   av="$(gtm-attio --version 2>&1 | head -1)" || { log "error: gtm-attio --version failed"; return 1; }
   record PASS gtm "gtm-linear ${lv}; gtm-attio ${av}"
+}
+
+# Writes the Git credential helper that answers only for the private gtm-sdk
+# repository, reading the token from the environment at lookup time.
+gtm_sdk_write_credential_helper() { # <path>
+  local helper="$1"
+  cat >"${helper}" <<'GTM_CREDENTIAL_HELPER'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == "get" ]] || exit 0
+protocol=""
+host=""
+path=""
+while IFS='=' read -r key value; do
+  [[ -n "${key}" ]] || break
+  case "${key}" in
+  protocol) protocol="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
+  host) host="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
+  path) path="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
+  esac
+done
+path="${path#/}"
+case "${protocol}:${host}:${path}" in
+https:github.com:elviskahoro/gtm-sdk | https:github.com:elviskahoro/gtm-sdk.git)
+  ;;
+*)
+  exit 0
+  ;;
+esac
+token="${GTM_SDK_GITHUB_TOKEN:-}"
+[[ -n "${token}" ]] || exit 0
+[[ "${token}" != *$'\n'* && "${token}" != *$'\r'* ]] || exit 1
+printf 'username=x-access-token\npassword=%s\n\n' "${token}"
+GTM_CREDENTIAL_HELPER
+  chmod 700 "${helper}"
+}
+
+# Repair only consuming repositories whose locked Python project explicitly
+# references the private gtm-sdk/cli package. Conductor supplies the token as
+# an environment secret; Git receives it through a temporary helper, never a
+# remote URL, config value, command argument, or log.
+gtm_sdk_dependency_repair() {
+  local git_source=0
+  if [[ -f uv.lock ]] && grep -Fq 'github.com/elviskahoro/gtm-sdk' uv.lock; then
+    git_source=1
+  fi
+  if [[ ! -f pyproject.toml || ! -f uv.lock ]] ||
+    { [[ "${git_source}" == 0 ]] && ! grep -Fq 'gtm-sdk/cli' pyproject.toml && ! grep -Fq 'gtm-sdk/cli' uv.lock; }; then
+    record SKIP gtm-sdk-deps "no locked gtm-sdk/cli dependency in this repository"
+    return 0
+  fi
+  if ! command -v uv >/dev/null 2>&1; then
+    record SKIP gtm-sdk-deps "uv is unavailable; see the uv row above"
+    return 0
+  fi
+
+  # The lock resolves gtm-sdk from its private GitHub repository (no submodule
+  # checkout needed). Sandboxes whose git proxy cannot see that repository fail
+  # the automatic install, so retry the sync with the token supplied through a
+  # command-scoped credential helper. The identity insteadOf rule is the
+  # longest match for this repository, so it wins over any sandbox rewrite of
+  # github.com to a local proxy; the token reaches only this one uv process.
+  if [[ "${git_source}" == 1 ]]; then
+    if [[ -z "${GTM_SDK_GITHUB_TOKEN:-}" ]]; then
+      log "error: GTM_SDK_GITHUB_TOKEN is required to fetch the private gtm-sdk dependency"
+      return 1
+    fi
+    local git_helper="${WORK}/gtm-sdk-credential-helper"
+    gtm_sdk_write_credential_helper "${git_helper}"
+    if ! (
+      unset GIT_TRACE GIT_TRACE_CURL GIT_CURL_VERBOSE GIT_TRACE_PACKET GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF
+      export GIT_CONFIG_COUNT=4
+      export GIT_CONFIG_KEY_0="credential.helper" GIT_CONFIG_VALUE_0=""
+      export GIT_CONFIG_KEY_1="credential.helper" GIT_CONFIG_VALUE_1="${git_helper}"
+      export GIT_CONFIG_KEY_2="credential.useHttpPath" GIT_CONFIG_VALUE_2="true"
+      export GIT_CONFIG_KEY_3="url.https://github.com/elviskahoro/gtm-sdk.insteadOf" GIT_CONFIG_VALUE_3="https://github.com/elviskahoro/gtm-sdk"
+      GIT_TERMINAL_PROMPT=0 uv sync --dev --frozen --python 3.13
+    ) >"${WORK}/gtm-sdk-git-sync.log" 2>&1; then
+      log "error: uv sync --dev --frozen --python 3.13 failed fetching gtm-sdk from git; check repository access and GTM_SDK_GITHUB_TOKEN"
+      return 1
+    fi
+    record PASS gtm-sdk-deps "gtm-sdk fetched from git with GTM_SDK_GITHUB_TOKEN and uv dependencies synced with Python 3.13"
+    return 0
+  fi
+
+  if [[ ! -f gtm-sdk/cli/pyproject.toml ]]; then
+    local gitlink module_key module_url module_status helper
+    gitlink="$(git ls-files --stage -- gtm-sdk 2>/dev/null | awk '$1 == "160000" { print $4; exit }' || true)"
+    if [[ "${gitlink}" != "gtm-sdk" || ! -f .gitmodules ]]; then
+      log "error: gtm-sdk/cli is missing and gtm-sdk is not a configured submodule"
+      return 1
+    fi
+
+    module_key="$(git config --file .gitmodules --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk '$2 == "gtm-sdk" { sub(/\.path$/, "", $1); print $1; exit }' || true)"
+    if [[ -z "${module_key}" ]]; then
+      log "error: gtm-sdk path is missing from .gitmodules"
+      return 1
+    fi
+    module_url="$(git config --file .gitmodules --get "${module_key}.url" 2>/dev/null || true)"
+    local module_url_lower
+    module_url_lower="$(printf '%s' "${module_url}" | tr '[:upper:]' '[:lower:]')"
+    case "${module_url_lower}" in
+    https://github.com/elviskahoro/gtm-sdk | https://github.com/elviskahoro/gtm-sdk.git | git@github.com:elviskahoro/gtm-sdk | git@github.com:elviskahoro/gtm-sdk.git | ssh://git@github.com/elviskahoro/gtm-sdk | ssh://git@github.com/elviskahoro/gtm-sdk.git)
+      ;;
+    *)
+      log "error: gtm-sdk submodule URL is not the expected GitHub repository"
+      return 1
+      ;;
+    esac
+
+    module_status="$(git submodule status -- gtm-sdk 2>/dev/null || true)"
+    if [[ "${module_status:0:1}" != "-" ]]; then
+      log "error: gtm-sdk/cli is missing but the gtm-sdk submodule is not uninitialized"
+      return 1
+    fi
+    if [[ -z "${GTM_SDK_GITHUB_TOKEN:-}" ]]; then
+      log "error: GTM_SDK_GITHUB_TOKEN is required to initialize the private gtm-sdk submodule"
+      return 1
+    fi
+
+    helper="${WORK}/gtm-sdk-credential-helper"
+    gtm_sdk_write_credential_helper "${helper}"
+
+    # Rewrite GitHub SSH URLs for HTTPS auth without changing repository or
+    # user configuration. These command-scoped values contain no credential.
+    if ! (
+      unset GIT_TRACE GIT_TRACE_CURL GIT_CURL_VERBOSE GIT_TRACE_PACKET GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF
+      export GIT_TERMINAL_PROMPT=0
+      git -c url.https://github.com/.insteadOf='git@github.com:' -c url.https://github.com/.insteadOf='ssh://git@github.com/' -c credential.helper= -c "credential.helper=${helper}" -c credential.useHttpPath=true submodule update --init --recursive -- gtm-sdk
+    ) >"${WORK}/gtm-sdk-submodule.log" 2>&1; then
+      log "error: private gtm-sdk submodule checkout failed; check repository access and GTM_SDK_GITHUB_TOKEN"
+      return 1
+    fi
+  fi
+
+  if [[ ! -f gtm-sdk/cli/pyproject.toml ]]; then
+    log "error: gtm-sdk checkout did not provide gtm-sdk/cli/pyproject.toml"
+    return 1
+  fi
+  if ! (unset GTM_SDK_GITHUB_TOKEN; uv sync --dev --frozen --python 3.13); then
+    log "error: uv sync --dev --frozen --python 3.13 failed after gtm-sdk checkout"
+    return 1
+  fi
+  record PASS gtm-sdk-deps "private gtm-sdk checkout is ready and uv dependencies synced with Python 3.13"
 }
 
 # --- prerequisites -----------------------------------------------------------
@@ -802,9 +907,8 @@ if railway_install; then :; else record FAIL railway "provisioning failed — se
 if entire_install; then :; else record FAIL entire "provisioning failed — see messages above"; FAILED=1; fi
 if python313_stage; then :; else record FAIL python3.13 "provisioning failed — see messages above"; FAILED=1; fi
 if uv_install; then :; else record FAIL uv "provisioning failed — see messages above"; FAILED=1; fi
-if gws_credentials; then :; else FAILED=1; fi
-if gws_install; then :; else record FAIL gws "provisioning failed — see messages above"; FAILED=1; fi
 if gtm_install; then :; else record FAIL gtm "provisioning failed — see messages above"; FAILED=1; fi
+if gtm_sdk_dependency_repair; then :; else record FAIL gtm-sdk-deps "private SDK checkout or dependency retry failed — see messages above"; FAILED=1; fi
 if rwx_auth; then :; else FAILED=1; fi
 
 log ""

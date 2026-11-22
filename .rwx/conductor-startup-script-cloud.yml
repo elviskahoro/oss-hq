@@ -63,7 +63,8 @@ tasks:
         scripts/conductor-infisical-preflight.sh \
         scripts/conductor-prompts/*.sh \
         scripts/validate-pins.sh \
-        scripts/conductor-startup-script-cloud-test.sh
+        scripts/conductor-startup-script-cloud-test.sh \
+        scripts/conductor-startup-sdk-self-test.sh
 
   # Was: docker run amazonlinux:2023 (linux/amd64) with the repo mounted ro.
   - key: container-test
