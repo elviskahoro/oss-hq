@@ -86,6 +86,7 @@ echo "env-python3 consumers in /usr/bin /usr/sbin: ${ENV_PY3_CONSUMERS:-none}"
 
 
 echo "=== RUN 1: fresh startup run (login shell of non-root sandbox-user, no token) ==="
+bash /src/scripts/conductor-startup-sdk-self-test.sh || fail "private SDK dependency recovery self-test failed"
 RUN1_OUTPUT="$(su - sandbox-user -c "bash ${STARTUP_SCRIPT}")" ||
   fail "fresh conductor-startup-script-cloud.sh exited non-zero"
 printf '%s\n' "${RUN1_OUTPUT}"
