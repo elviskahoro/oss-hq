@@ -18,7 +18,7 @@
 #      Repo-agnostic by design: the optional SDK recovery only activates when
 #      the locked project references gtm-sdk/cli; no consumer path is assumed.
 #
-# Also: gws (npm) + gtm-linear/gtm-attio (uv pip) after uv, plus gws credentials.
+# Also: gtm-linear/gtm-attio (uv pip) after uv, plus gws credentials (gws itself is not installed here).
 # Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> railway -> entire
 # (with git-remote-entire, which git needs on PATH for entire:// remotes) ->
 # python3.13 installed ALONGSIDE 3.9 via dnf on AL2023 (SKIP elsewhere) ->
@@ -679,11 +679,11 @@ rwx_auth() {
   return 0
 }
 
-# --- gws + gtm CLIs ----------------------------------------------------------
-# Mirrors the Warp/Oz setup script. gws (@googleworkspace/cli) comes from npm
-# and reads ~/.config/gws/credentials.json, written from GWS_CREDENTIALS (never
-# printed). gtm-linear/gtm-attio come from PyPI via uv into the system python.
-# Both are floors, not exact pins, so unlike the tarball stages they are not
+# --- gws credentials + gtm CLIs ----------------------------------------------
+# Mirrors the Warp/Oz setup script. gws reads ~/.config/gws/credentials.json,
+# written from GWS_CREDENTIALS (never printed); the gws CLI is not installed
+# here. gtm-linear/gtm-attio come from PyPI via uv into the system python.
+# They are floors, not exact pins, so unlike the tarball stages they are not
 # checksum-verified. sudo only when not root and passwordless sudo exists.
 GTM_LINEAR_MIN="0.3.0"
 GTM_ATTIO_MIN="0.26.1"
@@ -710,32 +710,6 @@ gws_credentials() {
     record FAIL gws-credentials "could not write ~/.config/gws/credentials.json"
     return 1
   fi
-}
-
-gws_install() {
-  if command -v gws >/dev/null 2>&1; then
-    record PASS gws "reused $(command -v gws)"
-    return 0
-  fi
-  if ! command -v npm >/dev/null 2>&1; then
-    record SKIP gws "npm not found; cannot install @googleworkspace/cli here, continuing"
-    return 0
-  fi
-  local sudo_cmd
-  if ! sudo_cmd="$(priv_cmd)"; then
-    record SKIP gws "no root or passwordless sudo for npm install -g, continuing"
-    return 0
-  fi
-  if ! ${sudo_cmd} npm install -g @googleworkspace/cli; then
-    log "error: npm install -g @googleworkspace/cli failed"
-    return 1
-  fi
-  hash -r 2>/dev/null || true
-  if ! command -v gws >/dev/null 2>&1; then
-    log "error: @googleworkspace/cli installed but gws is not on PATH"
-    return 1
-  fi
-  record PASS gws "installed $(command -v gws)"
 }
 
 gtm_install() {
@@ -909,7 +883,6 @@ if entire_install; then :; else record FAIL entire "provisioning failed — see 
 if python313_stage; then :; else record FAIL python3.13 "provisioning failed — see messages above"; FAILED=1; fi
 if uv_install; then :; else record FAIL uv "provisioning failed — see messages above"; FAILED=1; fi
 if gws_credentials; then :; else FAILED=1; fi
-if gws_install; then :; else record FAIL gws "provisioning failed — see messages above"; FAILED=1; fi
 if gtm_install; then :; else record FAIL gtm "provisioning failed — see messages above"; FAILED=1; fi
 if gtm_sdk_dependency_repair; then :; else record FAIL gtm-sdk-deps "private SDK checkout or dependency retry failed — see messages above"; FAILED=1; fi
 if rwx_auth; then :; else FAILED=1; fi
