@@ -62,6 +62,7 @@ chmod 700 "${fake_bin}/git" "${fake_bin}/uv"
 
 if ! (
   cd "${fixture}"
+  # shellcheck disable=SC2030  # PATH is scoped to this subshell on purpose
   PATH="${fake_bin}:${PATH}"
   export PATH
   export SDK_TEST_REAL_GIT="${real_git}"
