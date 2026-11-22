@@ -17,6 +17,7 @@
 #        bash scripts/conductor-startup-script-cloud.sh
 #      Repo-agnostic by design: no repo paths or scripts.
 #
+# Also: gws (npm) + gtm-linear/gtm-attio (uv pip) after uv, plus gws credentials.
 # Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> railway -> entire
 # (with git-remote-entire, which git needs on PATH for entire:// remotes) ->
 # python3.13 installed ALONGSIDE 3.9 via dnf on AL2023 (SKIP elsewhere) ->
@@ -676,6 +677,86 @@ rwx_auth() {
   return 0
 }
 
+# --- gws + gtm CLIs ----------------------------------------------------------
+# Mirrors the Warp/Oz setup script. gws (@googleworkspace/cli) comes from npm
+# and reads ~/.config/gws/credentials.json, written from GWS_CREDENTIALS (never
+# printed). gtm-linear/gtm-attio come from PyPI via uv into the system python.
+# Both are floors, not exact pins, so unlike the tarball stages they are not
+# checksum-verified. sudo only when not root and passwordless sudo exists.
+GTM_LINEAR_MIN="0.3.0"
+GTM_ATTIO_MIN="0.26.1"
+
+priv_cmd() { # echoes "sudo" when needed, "" when root; returns 1 when neither works
+  if [[ "$(id -u)" == 0 ]]; then
+    return 0
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    echo sudo
+  else
+    return 1
+  fi
+}
+
+gws_credentials() {
+  if [[ -z "${GWS_CREDENTIALS:-}" ]]; then
+    record WARN gws-credentials "GWS_CREDENTIALS not set — skipped writing ~/.config/gws/credentials.json"
+    return 0
+  fi
+  mkdir -p "${HOME}/.config/gws"
+  if (umask 077; printf '%s' "${GWS_CREDENTIALS}" > "${HOME}/.config/gws/credentials.json"); then
+    record PASS gws-credentials "wrote ~/.config/gws/credentials.json from GWS_CREDENTIALS"
+  else
+    record FAIL gws-credentials "could not write ~/.config/gws/credentials.json"
+    return 1
+  fi
+}
+
+gws_install() {
+  if command -v gws >/dev/null 2>&1; then
+    record PASS gws "reused $(command -v gws)"
+    return 0
+  fi
+  if ! command -v npm >/dev/null 2>&1; then
+    record SKIP gws "npm not found; cannot install @googleworkspace/cli here, continuing"
+    return 0
+  fi
+  local sudo_cmd
+  if ! sudo_cmd="$(priv_cmd)"; then
+    record SKIP gws "no root or passwordless sudo for npm install -g, continuing"
+    return 0
+  fi
+  if ! ${sudo_cmd} npm install -g @googleworkspace/cli; then
+    log "error: npm install -g @googleworkspace/cli failed"
+    return 1
+  fi
+  hash -r 2>/dev/null || true
+  if ! command -v gws >/dev/null 2>&1; then
+    log "error: @googleworkspace/cli installed but gws is not on PATH"
+    return 1
+  fi
+  record PASS gws "installed $(command -v gws)"
+}
+
+gtm_install() {
+  if ! command -v uv >/dev/null 2>&1; then
+    record SKIP gtm "uv not installed (see uv row); cannot install gtm-linear/gtm-attio, continuing"
+    return 0
+  fi
+  local sudo_cmd
+  if ! sudo_cmd="$(priv_cmd)"; then
+    record SKIP gtm "no root or passwordless sudo for uv pip install --system, continuing"
+    return 0
+  fi
+  if ! ${sudo_cmd} env "PATH=${PATH}" uv pip install --system --break-system-packages --upgrade-package gtm-linear --upgrade-package gtm-attio "gtm-linear>=${GTM_LINEAR_MIN}" "gtm-attio>=${GTM_ATTIO_MIN}"; then
+    log "error: uv pip install gtm-linear/gtm-attio failed"
+    return 1
+  fi
+  hash -r 2>/dev/null || true
+  local lv av
+  lv="$(gtm-linear --version 2>&1 | head -1)" || { log "error: gtm-linear --version failed"; return 1; }
+  av="$(gtm-attio --version 2>&1 | head -1)" || { log "error: gtm-attio --version failed"; return 1; }
+  record PASS gtm "gtm-linear ${lv}; gtm-attio ${av}"
+}
+
 # --- prerequisites -----------------------------------------------------------
 # Every pinned CLI ships as a .tar.gz, but bare AL2023 images omit tar/gzip.
 # Install them via dnf when root or passwordless sudo allows (same gating as
@@ -721,6 +802,9 @@ if railway_install; then :; else record FAIL railway "provisioning failed — se
 if entire_install; then :; else record FAIL entire "provisioning failed — see messages above"; FAILED=1; fi
 if python313_stage; then :; else record FAIL python3.13 "provisioning failed — see messages above"; FAILED=1; fi
 if uv_install; then :; else record FAIL uv "provisioning failed — see messages above"; FAILED=1; fi
+if gws_credentials; then :; else FAILED=1; fi
+if gws_install; then :; else record FAIL gws "provisioning failed — see messages above"; FAILED=1; fi
+if gtm_install; then :; else record FAIL gtm "provisioning failed — see messages above"; FAILED=1; fi
 if rwx_auth; then :; else FAILED=1; fi
 
 log ""
