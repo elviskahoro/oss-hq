@@ -18,11 +18,11 @@
 #      Repo-agnostic by design: the optional SDK recovery only activates when
 #      the locked project references gtm-sdk/cli; no consumer path is assumed.
 #
-# Also: gtm-linear/gtm-attio (uv pip) after uv, plus gws credentials (gws itself is not installed here).
+# Also: gtm-linear/gtm-attio (uv pip) after uv.
 # Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> railway -> entire
 # (with git-remote-entire, which git needs on PATH for entire:// remotes) ->
 # python3.13 installed ALONGSIDE 3.9 via dnf on AL2023 (SKIP elsewhere) ->
-# uv (pinned, checksum-verified) -> gws credentials + gtm CLIs -> optional gtm-sdk dependency
+# uv (pinned, checksum-verified) -> gtm CLIs -> optional gtm-sdk dependency
 # recovery -> rwx auth (token validated BEFORE it is persisted, so a bad token
 # never overwrites a good one).
 #
@@ -679,12 +679,11 @@ rwx_auth() {
   return 0
 }
 
-# --- gws credentials + gtm CLIs ----------------------------------------------
-# Mirrors the Warp/Oz setup script. gws reads ~/.config/gws/credentials.json,
-# written from GWS_CREDENTIALS (never printed); the gws CLI is not installed
-# here. gtm-linear/gtm-attio come from PyPI via uv into the system python.
-# They are floors, not exact pins, so unlike the tarball stages they are not
-# checksum-verified. sudo only when not root and passwordless sudo exists.
+# --- gtm CLIs -----------------------------------------------------------------
+# Mirrors the Warp/Oz setup script. gtm-linear/gtm-attio come from PyPI via uv
+# into the system python. They are floors, not exact pins, so unlike the
+# tarball stages they are not checksum-verified. sudo only when not root and
+# passwordless sudo exists.
 GTM_LINEAR_MIN="0.3.0"
 GTM_ATTIO_MIN="0.26.1"
 
@@ -694,20 +693,6 @@ priv_cmd() { # echoes "sudo" when needed, "" when root; returns 1 when neither w
   elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
     echo sudo
   else
-    return 1
-  fi
-}
-
-gws_credentials() {
-  if [[ -z "${GWS_CREDENTIALS:-}" ]]; then
-    record WARN gws-credentials "GWS_CREDENTIALS not set — skipped writing ~/.config/gws/credentials.json"
-    return 0
-  fi
-  mkdir -p "${HOME}/.config/gws"
-  if (umask 077; printf '%s' "${GWS_CREDENTIALS}" > "${HOME}/.config/gws/credentials.json"); then
-    record PASS gws-credentials "wrote ~/.config/gws/credentials.json from GWS_CREDENTIALS"
-  else
-    record FAIL gws-credentials "could not write ~/.config/gws/credentials.json"
     return 1
   fi
 }
@@ -922,7 +907,6 @@ if railway_install; then :; else record FAIL railway "provisioning failed — se
 if entire_install; then :; else record FAIL entire "provisioning failed — see messages above"; FAILED=1; fi
 if python313_stage; then :; else record FAIL python3.13 "provisioning failed — see messages above"; FAILED=1; fi
 if uv_install; then :; else record FAIL uv "provisioning failed — see messages above"; FAILED=1; fi
-if gws_credentials; then :; else FAILED=1; fi
 if gtm_install; then :; else record FAIL gtm "provisioning failed — see messages above"; FAILED=1; fi
 if gtm_sdk_dependency_repair; then :; else record FAIL gtm-sdk-deps "private SDK checkout or dependency retry failed — see messages above"; FAILED=1; fi
 if rwx_auth; then :; else FAILED=1; fi
