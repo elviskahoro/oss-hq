@@ -1,11 +1,11 @@
 ---
 name: conductor-startup-script
-description: Use when provisioning a Conductor cloud workspace with scripts/conductor-startup-script-cloud.sh, pasting it into another repo's setup field, setting its env vars (RWX_ACCESS_TOKEN), bumping a pin, or diagnosing a workspace that came up missing rwx/infisical/resend/entire/uv. Code-dev tools (roborev, pytest, ruff, pyright, reflex) are not provisioned; they run on RWX.
+description: Use when provisioning a Conductor cloud workspace with scripts/conductor-startup-script-cloud.sh, pasting it into another repo's setup field, setting its env vars (RWX_ACCESS_TOKEN), bumping a pin, or diagnosing a workspace that came up missing rwx/infisical/resend/railway/entire/uv. Code-dev tools (roborev, pytest, ruff, pyright, reflex) are not provisioned; they run on RWX.
 ---
 
 # The Conductor startup script
 
-`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs only the CLIs agents call directly (pinned, checksum-verified): rwx (plus token validation), infisical, resend, entire (with `git-remote-entire`), and uv, plus Python 3.13 on the AL2023 sandbox class (its system python3 is 3.9; 3.13 is installed alongside it via dnf). Every stage failure is fatal: a missing CLI fails setup loudly (after all stages report). Code-dev tooling runs as RWX tasks (issue #185); see "Where the moved tools run".
+`scripts/conductor-startup-script-cloud.sh` is the single provisioning script for every repo's cloud workspaces. It installs only the CLIs agents call directly (pinned, checksum-verified): rwx (plus token validation), infisical, resend, railway, entire (with `git-remote-entire`), and uv, plus Python 3.13 on the AL2023 sandbox class (its system python3 is 3.9; 3.13 is installed alongside it via dnf). Every stage failure is fatal: a missing CLI fails setup loudly (after all stages report). Code-dev tooling runs as RWX tasks (issue #185); see "Where the moved tools run".
 
 For snapshot-build 403s or paste failures, use `conductor-cloud-startup-script-debugging`. To run the container test, use `run-startup-script-tests`.
 
@@ -60,6 +60,7 @@ Pins live in the script's pins block. Always read the current values there, neve
 
 - A uv bump must change three things together: the startup script, `envs/prebuilt`, and `envs/floxhub-provision` (and their locks). `scripts/validate-pins.sh` cross-checks them.
 - resend: `RESEND_PIN` plus per-platform sha256s from the release's `checksums.txt`; `validate-pins.sh` checks the shape.
+- railway: `RAILWAY_PIN` plus per-platform sha256s from the release asset digests (`gh release view v<pin> -R railwayapp/cli --json assets`); `validate-pins.sh` checks the shape.
 - roborev's pin lives in `.rwx/roborev.yml` and must match the two Flox manifests (`validate-pins.sh`).
 - A working uv is reused as-is on re-runs, so a `UV_PIN` bump applies to fresh installs.
 - Entire: `ENTIRE_PIN` plus a per-platform `ENTIRE_SHA256_*` constant for each platform. The re-pin runbook is in the pins block.

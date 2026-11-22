@@ -117,6 +117,26 @@ else
   fail "resend sha256" "expected >=3 valid platform hashes, got ${RESEND_N} (bad=${RESEND_BAD})"
 fi
 
+# 6b. RAILWAY_PIN + the per-platform sha256s in railway_install(): exact x.y.z
+RAILWAY_PIN_VALUE="$(sed -n 's/^RAILWAY_PIN="\([^"]*\)".*/\1/p' "${STARTUP}")"
+if [[ "${RAILWAY_PIN_VALUE}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  pass "RAILWAY_PIN" "exact pin ${RAILWAY_PIN_VALUE}"
+else
+  fail "RAILWAY_PIN" "missing or not an exact x.y.z pin: ${RAILWAY_PIN_VALUE:-<missing>}"
+fi
+awk '/^railway_install\(\)/,/^}$/' "${STARTUP}" | sed -n 's/^ *sha256="\([^"]*\)".*/\1/p' >"${WORK}/railway_hashes"
+RAILWAY_BAD=0
+RAILWAY_N=0
+while IFS= read -r h; do
+  RAILWAY_N=$((RAILWAY_N + 1))
+  [[ "${h}" =~ ^[0-9a-f]{64}$ ]] || RAILWAY_BAD=1
+done <"${WORK}/railway_hashes"
+if [[ ${RAILWAY_N} -ge 3 && ${RAILWAY_BAD} -eq 0 ]]; then
+  pass "railway sha256" "${RAILWAY_N} platform hashes, all 64-char hex"
+else
+  fail "railway sha256" "expected >=3 valid platform hashes, got ${RAILWAY_N} (bad=${RAILWAY_BAD})"
+fi
+
 # 9. ENTIRE_PIN + ENTIRE_SHA256_* (issue #91). ENTIRE_PIN must be a
 # non-floating x.y.z, exactly like RESEND_PIN. The four per-platform SHA256
 # constants must each be present and a 64-char lowercase hex string — the
