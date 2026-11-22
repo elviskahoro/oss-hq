@@ -13,6 +13,10 @@ There is no installable `conductor` CLI in RWX (it's injected into Conductor wor
 
 `GITHUB_ISSUES_TOKEN` (issues read on the repos) and `CONDUCTOR_API_KEY` (the value of `$CONDUCTOR_API_KEY` in a workspace). Export the right `RWX_ACCESS_TOKEN` first (see [`rwx`](../rwx/SKILL.md)).
 
+## When the user says "dispatch a workspace for every open issue"
+
+This means GitHub issues through this pipeline, not the Linear inbox. The Linear Email (MSG) team's Triage queue holds emails (receipts, newsletters, invites, e2e checks, notifications), not coding tasks, so don't fan those out. If the request says "Linear", ask whether they mean GitHub issues; the user has answered "GitHub issues instead" before. Still ask for the `owner/name` repo list rather than guessing it.
+
 ## Steps
 
 1. Confirm the repo subset with the user (`owner/name` list). Don't guess it.
