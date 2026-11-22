@@ -733,18 +733,86 @@ gtm_install() {
   record PASS gtm "gtm-linear ${lv}; gtm-attio ${av}"
 }
 
+# Writes the Git credential helper that answers only for the private gtm-sdk
+# repository, reading the token from the environment at lookup time.
+gtm_sdk_write_credential_helper() { # <path>
+  local helper="$1"
+  cat >"${helper}" <<'GTM_CREDENTIAL_HELPER'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == "get" ]] || exit 0
+protocol=""
+host=""
+path=""
+while IFS='=' read -r key value; do
+  [[ -n "${key}" ]] || break
+  case "${key}" in
+  protocol) protocol="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
+  host) host="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
+  path) path="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
+  esac
+done
+path="${path#/}"
+case "${protocol}:${host}:${path}" in
+https:github.com:elviskahoro/gtm-sdk | https:github.com:elviskahoro/gtm-sdk.git)
+  ;;
+*)
+  exit 0
+  ;;
+esac
+token="${GTM_SDK_GITHUB_TOKEN:-}"
+[[ -n "${token}" ]] || exit 0
+[[ "${token}" != *$'\n'* && "${token}" != *$'\r'* ]] || exit 1
+printf 'username=x-access-token\npassword=%s\n\n' "${token}"
+GTM_CREDENTIAL_HELPER
+  chmod 700 "${helper}"
+}
+
 # Repair only consuming repositories whose locked Python project explicitly
 # references the private gtm-sdk/cli package. Conductor supplies the token as
 # an environment secret; Git receives it through a temporary helper, never a
 # remote URL, config value, command argument, or log.
 gtm_sdk_dependency_repair() {
+  local git_source=0
+  if [[ -f uv.lock ]] && grep -Fq 'github.com/elviskahoro/gtm-sdk' uv.lock; then
+    git_source=1
+  fi
   if [[ ! -f pyproject.toml || ! -f uv.lock ]] ||
-    { ! grep -Fq 'gtm-sdk/cli' pyproject.toml && ! grep -Fq 'gtm-sdk/cli' uv.lock; }; then
+    { [[ "${git_source}" == 0 ]] && ! grep -Fq 'gtm-sdk/cli' pyproject.toml && ! grep -Fq 'gtm-sdk/cli' uv.lock; }; then
     record SKIP gtm-sdk-deps "no locked gtm-sdk/cli dependency in this repository"
     return 0
   fi
   if ! command -v uv >/dev/null 2>&1; then
     record SKIP gtm-sdk-deps "uv is unavailable; see the uv row above"
+    return 0
+  fi
+
+  # The lock resolves gtm-sdk from its private GitHub repository (no submodule
+  # checkout needed). Sandboxes whose git proxy cannot see that repository fail
+  # the automatic install, so retry the sync with the token supplied through a
+  # command-scoped credential helper. The identity insteadOf rule is the
+  # longest match for this repository, so it wins over any sandbox rewrite of
+  # github.com to a local proxy; the token reaches only this one uv process.
+  if [[ "${git_source}" == 1 ]]; then
+    if [[ -z "${GTM_SDK_GITHUB_TOKEN:-}" ]]; then
+      log "error: GTM_SDK_GITHUB_TOKEN is required to fetch the private gtm-sdk dependency"
+      return 1
+    fi
+    local git_helper="${WORK}/gtm-sdk-credential-helper"
+    gtm_sdk_write_credential_helper "${git_helper}"
+    if ! (
+      unset GIT_TRACE GIT_TRACE_CURL GIT_CURL_VERBOSE GIT_TRACE_PACKET GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF
+      export GIT_CONFIG_COUNT=4
+      export GIT_CONFIG_KEY_0="credential.helper" GIT_CONFIG_VALUE_0=""
+      export GIT_CONFIG_KEY_1="credential.helper" GIT_CONFIG_VALUE_1="${git_helper}"
+      export GIT_CONFIG_KEY_2="credential.useHttpPath" GIT_CONFIG_VALUE_2="true"
+      export GIT_CONFIG_KEY_3="url.https://github.com/elviskahoro/gtm-sdk.insteadOf" GIT_CONFIG_VALUE_3="https://github.com/elviskahoro/gtm-sdk"
+      GIT_TERMINAL_PROMPT=0 uv sync --dev --frozen --python 3.13
+    ) >"${WORK}/gtm-sdk-git-sync.log" 2>&1; then
+      log "error: uv sync --dev --frozen --python 3.13 failed fetching gtm-sdk from git; check repository access and GTM_SDK_GITHUB_TOKEN"
+      return 1
+    fi
+    record PASS gtm-sdk-deps "gtm-sdk fetched from git with GTM_SDK_GITHUB_TOKEN and uv dependencies synced with Python 3.13"
     return 0
   fi
 
@@ -784,35 +852,7 @@ gtm_sdk_dependency_repair() {
     fi
 
     helper="${WORK}/gtm-sdk-credential-helper"
-    cat >"${helper}" <<'GTM_CREDENTIAL_HELPER'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ "${1:-}" == "get" ]] || exit 0
-protocol=""
-host=""
-path=""
-while IFS='=' read -r key value; do
-  [[ -n "${key}" ]] || break
-  case "${key}" in
-  protocol) protocol="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
-  host) host="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
-  path) path="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" ;;
-  esac
-done
-path="${path#/}"
-case "${protocol}:${host}:${path}" in
-https:github.com:elviskahoro/gtm-sdk | https:github.com:elviskahoro/gtm-sdk.git)
-  ;;
-*)
-  exit 0
-  ;;
-esac
-token="${GTM_SDK_GITHUB_TOKEN:-}"
-[[ -n "${token}" ]] || exit 0
-[[ "${token}" != *$'\n'* && "${token}" != *$'\r'* ]] || exit 1
-printf 'username=x-access-token\npassword=%s\n\n' "${token}"
-GTM_CREDENTIAL_HELPER
-    chmod 700 "${helper}"
+    gtm_sdk_write_credential_helper "${helper}"
 
     # Rewrite GitHub SSH URLs for HTTPS auth without changing repository or
     # user configuration. These command-scoped values contain no credential.
