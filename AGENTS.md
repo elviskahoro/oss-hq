@@ -65,6 +65,8 @@ Repos should hold pointers, not copies: `install-conductor-prompts.py --pointers
 
 [`.rwx/dispatch-issues.yml`](.rwx/dispatch-issues.yml) (Dagger; secrets `GITHUB_ISSUES_TOKEN`, `CONDUCTOR_API_KEY`) lists open issues for given repos and opens a workspace per issue with the create-pr prompt via the Conductor API; dry-run unless `run=1`. See [`skills/issue-workspaces/SKILL.md`](skills/issue-workspaces/SKILL.md).
 
+"Dispatch a workspace for every open issue" means the GitHub pipeline above, not the Linear inbox (the Linear MSG team's Triage is emails, not coding tasks). Confirm the repo list first, dry-run, try `limit=1`, then fan out. Skips: `status::*`, `gas-city`, untrusted authors; `needs-human` is dispatched plan-first for this user (see the skill).
+
 ### Tracking upstream issues
 
 "Track this issue" (an issue in another repo we're waiting on) means: add it to the watchlist [`watched-issues.json`](watched-issues.json) as `{ "repo", "number", "why" }`. The `check-closed-issues` cron ([`.rwx/check-closed-issues.yml`](.rwx/check-closed-issues.yml)) fails when a watched item closes, and RWX notifies (see [`skills/rwx/SKILL.md`](skills/rwx/SKILL.md)). Do **not** open a tracking issue in this repo or use claim labels for this. Past mistake: an agent opened a redundant tracking issue (#189) because the instructions didn't say this. Filing the upstream issue itself is separate and only on request. Check the script with `python3 scripts/check-closed-issues.py watched-issues.json 2099-01-01T00:00:00Z`.

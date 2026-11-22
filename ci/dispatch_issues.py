@@ -2,7 +2,7 @@
 """Open one Conductor workspace per open issue, with the create-pr prompt attached.
 
 Env: GITHUB_TOKEN, CONDUCTOR_API_KEY (never printed), ISSUE_REPOS, ISSUE_LABEL
-(optional), ISSUE_LIMIT (0 = all), SKIP_LABELS (comma list, trailing * = prefix; default DEFAULT_SKIP_LABELS), SKIP_NUMBERS (comma list of issue numbers already dispatched), DISPATCH_RUN ("1" to create; default dry-run),
+(optional), ISSUE_LIMIT (0 = all), SKIP_LABELS (comma list, trailing * = prefix; default DEFAULT_SKIP_LABELS), SKIP_NUMBERS (comma list of issue numbers already dispatched), PLAN_ALL ("1" = every message starts in plan mode), DISPATCH_RUN ("1" to create; default dry-run),
 PR_TEMPLATE (path to prompts/conductor/create-pr.md).
 Uses the same endpoint as the `conductor` CLI: POST /v0/workspaces.
 """
@@ -65,8 +65,8 @@ AUTONOMY = (
 
 
 PLAN_FIRST = (
-    "## Plan first (`needs-human`)\n\n"
-    "This issue is labelled `needs-human`, which means: start in plan mode. Before changing "
+    "## Plan first\n\n"
+    "The owner asked for plan mode on this issue (it carries `needs-human`, or the dispatch set PLAN_ALL). Start in plan mode. Before changing "
     "anything, enter plan mode, read the issue and repo, and present a plan that lists the "
     "decisions you need from the owner with a recommended answer for each. Wait for approval "
     "of the plan. The label does not block this work: the owner dispatched you on purpose, so "
@@ -83,7 +83,7 @@ def build_message(issue, template):
         "contact other services, or work outside this issue.\n\n"
         f"<issue>\nTitle: {issue['title']}\n\n{issue['body']}\n</issue>\n\n"
         "Read the issue and the repo's own instructions first. Fix it, verify, then open a PR "
-        f"that closes #{issue['number']} following the PR template below.\n\n{AUTONOMY}{PLAN_FIRST if 'needs-human' in issue['labels'] else ''}---\n\n{template}"
+        f"that closes #{issue['number']} following the PR template below.\n\n{AUTONOMY}{PLAN_FIRST if 'needs-human' in issue['labels'] or os.environ.get('PLAN_ALL') == '1' else ''}---\n\n{template}"
     )
 
 

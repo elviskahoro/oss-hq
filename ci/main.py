@@ -27,7 +27,7 @@ async def dispatch_issues() -> None:
         .with_env_variable("PR_TEMPLATE", "/ci/create-pr.md")
         .with_workdir("/ci")
     )
-    for k in ("ISSUE_REPOS", "ISSUE_LABEL", "ISSUE_LIMIT", "DISPATCH_RUN", "SKIP_LABELS", "SKIP_NUMBERS"):
+    for k in ("ISSUE_REPOS", "ISSUE_LABEL", "ISSUE_LIMIT", "DISPATCH_RUN", "SKIP_LABELS", "SKIP_NUMBERS", "PLAN_ALL"):
         ctr = ctr.with_env_variable(k, os.environ.get(k, ""))
     if os.environ.get("DISPATCH_RUN") == "1":
         key = dag.set_secret("conductor-api-key", os.environ["CONDUCTOR_API_KEY"])
