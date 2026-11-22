@@ -7,6 +7,7 @@ WORK="$(mktemp -d)"
 cleanup() { rm -rf "${WORK}"; }
 trap cleanup EXIT
 
+command -v git >/dev/null || { echo "SDK self-test failed: git is required" >&2; exit 1; }
 real_git="$(command -p -v git)"
 function_file="${WORK}/gtm-sdk-dependency-function.sh"
 awk '/^gtm_sdk_dependency_repair\(\)/ { copy = 1 } copy { print } copy && /^}$/ { exit }' "${STARTUP_SCRIPT}" >"${function_file}"
@@ -81,8 +82,8 @@ if ! grep -Fqx 'username=x-access-token' "${auth_output}"; then
   echo "SDK self-test failed: Git credential username was not set" >&2
   exit 1
 fi
-printf 'sync\n--dev\n--frozen\n--python\n3.13\n' >"${WORK}/expected-uv-args"
-if ! cmp -s "${uv_args}" "${WORK}/expected-uv-args"; then
+expected_uv_args="$(printf 'sync\n--dev\n--frozen\n--python\n3.13')"
+if [[ "$(<"${uv_args}")" != "${expected_uv_args}" ]]; then
   echo "SDK self-test failed: uv sync arguments differ from the required retry" >&2
   exit 1
 fi
