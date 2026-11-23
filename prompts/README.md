@@ -120,7 +120,7 @@ from a removed source.
 
 - Roborev runs only through the dispatch-only RWX pipeline
   (`rwx run .rwx/roborev.yml --wait`), never as a local `roborev` or `pi`
-  invocation; the sandbox has neither and needs no `FIREWORKS_API_KEY`.
+  invocation; the sandbox has neither and needs no `KILO_API_KEY`.
 - Roborev reviews are always blocking, never fire-and-forget: the
   pipeline blocks (`--wait`) and fails closed, so a missing verdict is never
   treated as clean.

@@ -174,7 +174,7 @@ read too.
 | Share prompts with another project | [`conductor-prompts`](skills/conductor-prompts/SKILL.md) |
 | Pull issues from DoltHub or Linear | [`beads-sync`](skills/beads-sync/SKILL.md) |
 | Record or look up what agents learned | [`cq`](skills/cq/SKILL.md) |
-| Configure Pullfrog reviews | [`pullfrog-fireworks-setup`](skills/pullfrog-fireworks-setup/SKILL.md) |
+| Configure Pullfrog reviews | [`pullfrog-kilo-setup`](skills/pullfrog-kilo-setup/SKILL.md) |
 | Log in to Entire from a workspace | [`entire-device-login`](skills/entire-device-login/SKILL.md) |
 | Capture Claude sessions in Paper Compute | [`paper-compute-sandbox`](skills/paper-compute-sandbox/SKILL.md) |
 | Fan open issues out to Conductor workspaces | [`issue-workspaces`](skills/issue-workspaces/SKILL.md) |

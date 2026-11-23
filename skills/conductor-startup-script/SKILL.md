@@ -37,12 +37,12 @@ Set these in the repo's Conductor environment variables, never inline in the scr
 
 | Tool | Command |
 | --- | --- |
-| roborev | `rwx run .rwx/roborev.yml --wait` (needs secret `FIREWORKS_API_KEY`; pins live in that file) |
+| roborev | `rwx run .rwx/roborev.yml --wait` (needs secret `KILO_API_KEY`; pins live in that file) |
 | pytest and the prompts/pin checks | `rwx run .rwx/test-prompts.yml --wait --fail-fast`, `rwx run .rwx/conductor-startup-script-cloud.yml --wait --fail-fast` |
 | lint, type check, format (trunk, ruff, pyright, pyrefly) | trunk runs inside RWX tasks, never as a local launcher |
 | one-off commands | `rwx sandbox exec -- <cmd>` |
 
-Also in this repo: `.conductor/settings.toml` calls the script with no flags; `STARTUP_BEST_EFFORT`, `STARTUP_PY_DEV_TOOLS`, `ROBOREV_AGENT`, `ROBOREV_MODEL` and the sandbox's `FIREWORKS_API_KEY` are gone.
+Also in this repo: `.conductor/settings.toml` calls the script with no flags; `STARTUP_BEST_EFFORT`, `STARTUP_PY_DEV_TOOLS`, `ROBOREV_AGENT`, `ROBOREV_MODEL` and the sandbox's `KILO_API_KEY` are gone.
 
 ## Entire
 

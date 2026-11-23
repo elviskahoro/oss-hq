@@ -3,7 +3,7 @@
 # pullfrog-approval. Run it before pushing:
 #   rwx run .rwx/roborev.yml --wait
 # It reviews local work (committed or not) against origin/main with the model in
-# .roborev.toml (pi + Fireworks) and fails when roborev reports findings.
+# .roborev.toml (pi + Kilo) and fails when roborev reports findings.
 on:
   cli:
     init:
@@ -39,6 +39,12 @@ tasks:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ROBOREV_VERSION: 0.63.0
       PI_VERSION: 1.4.0
+      # Kilo settings come from vars in the roborev vault (no repo change to switch model).
+      KILO_MODEL: ${{ vaults.roborev.vars.KILO_MODEL }}
+      KILO_BASE_URL: ${{ vaults.roborev.vars.KILO_BASE_URL }}
+      KILO_ORG_ID: ${{ vaults.roborev.vars.KILO_ORG_ID }}
+      KILO_CONTEXT: ${{ vaults.roborev.vars.KILO_CONTEXT }}
+      KILO_MAX_OUTPUT: ${{ vaults.roborev.vars.KILO_MAX_OUTPUT }}
     run: |
       set -euo pipefail
       # Pinned to the version in .flox/env/manifest.toml (the installer only
@@ -55,7 +61,20 @@ tasks:
       echo "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials
       chmod 600 ~/.git-credentials
       # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
-      export FIREWORKS_API_KEY="${{ secrets.FIREWORKS_API_KEY }}"
+      export KILO_API_KEY="${{ vaults.roborev.secrets.KILO_API_KEY }}"
+      [ -n "$KILO_API_KEY" ] || { echo "error: KILO_API_KEY unavailable" >&2; exit 1; }
+      # Register the Kilo gateway as a pi provider (pi has no built-in one).
+      # The org header bills the Kilo organization. apiKey is read from the env.
+      mkdir -p "$HOME/.pi/agent"
+      node -e '
+        const e = process.env;
+        require("fs").writeFileSync(e.HOME + "/.pi/agent/models.json", JSON.stringify({providers: {kilo: {
+          name: "Kilo Gateway", baseUrl: e.KILO_BASE_URL, api: "openai-completions",
+          apiKey: "$KILO_API_KEY", authHeader: true,
+          headers: {"X-KiloCode-OrganizationId": e.KILO_ORG_ID},
+          models: [{id: e.KILO_MODEL, name: e.KILO_MODEL, contextWindow: +e.KILO_CONTEXT, maxTokens: +e.KILO_MAX_OUTPUT}]
+        }}}, null, 2));
+      '
       # A pushed commit is cloned shallow, so merge-base would find no shared
       # history with main; unshallow while fetching main.
       unshallow=()
@@ -69,6 +88,9 @@ tasks:
         git add -A
         git -c user.name=roborev-ci -c user.email=roborev-ci@localhost commit -q -m "local changes under review"
       fi
+      # Select the model from the vault after the commit above, so this edit is
+      # not part of the reviewed diff. .roborev.toml's model line is only a default.
+      sed -i "s|^model = .*|model = \"kilo/${KILO_MODEL}\"|" .roborev.toml
       base="$(git merge-base origin/main HEAD)"
       echo "reviewing ${base}..HEAD"
       git diff --stat "${base}..HEAD" | tail -5
