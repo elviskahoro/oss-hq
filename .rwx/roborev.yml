@@ -8,6 +8,14 @@ on:
   cli:
     init:
       ref: ${{ event.git.sha }}
+      branch: ${{ event.git.branch }}
+
+# One review per branch: a new dispatch on the same branch replaces the stale run.
+# Pool ids are global to the RWX org, so the repo name is part of the id.
+concurrency-pools:
+  - id: elviskahoro/oss-hq:roborev:${{ init.branch }}
+    capacity: 1
+    on-overflow: cancel-running
 
 base:
   image: ubuntu:24.04
