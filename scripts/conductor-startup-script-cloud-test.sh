@@ -89,14 +89,17 @@ echo "=== RUN 1: fresh startup run (login shell of non-root sandbox-user, no tok
 # The self-test builds a git fixture; the bare AL2023 image has no git.
 dnf install -y git >/dev/null
 bash /src/scripts/conductor-startup-sdk-self-test.sh || fail "private SDK dependency recovery self-test failed"
-RUN1_OUTPUT="$(su - sandbox-user -c "bash ${STARTUP_SCRIPT}")" ||
+RUN1_OUTPUT="$(su - sandbox-user -c "bash ${STARTUP_SCRIPT}")" || {
+  printf '%s\n' "${RUN1_OUTPUT}"
+  su - sandbox-user -c 'tail -n 40 ~/.conductor-setup.log' || true
   fail "fresh conductor-startup-script-cloud.sh exited non-zero"
+}
 printf '%s\n' "${RUN1_OUTPUT}"
 case "${RUN1_OUTPUT}" in
 *" | FAIL |"*) fail "fresh run recorded FAIL row(s)" ;;
 esac
 case "${RUN1_OUTPUT}" in *"RWX_ACCESS_TOKEN not set"*) ;; *) fail "fresh run missing the no-token WARN row" ;; esac
-for stage in rwx infisical resend railway entire python3.13 uv; do
+for stage in rwx infisical resend railway entire oz python3.13 uv; do
   case "${RUN1_OUTPUT}" in *" ${stage} | PASS |"*) ;; *) fail "fresh run missing a PASS row for ${stage}" ;; esac
 done
 for gone in roborev pi pytools python3.11; do
@@ -136,6 +139,11 @@ su - sandbox-user -c "
   printf '%s' \"\${out}\" | grep -q \"Entire CLI \$(pin ENTIRE_PIN)\" || fail \"entire does not report the pin: \${out}\"
   at_local_bin git-remote-entire
   git-remote-entire --help >/dev/null 2>&1 || fail \"git-remote-entire is not runnable\"
+
+  at_local_bin oz
+  out=\"\$(oz --version 2>&1)\" || true
+  oz_pin=\"\$(pin OZ_PIN)\"
+  printf '%s' \"\${out}\" | grep -q \"Oz v\${oz_pin%.*}_\${oz_pin##*.}\" || fail \"oz does not report the pin: \${out}\"
 
   at_local_bin uv
   out=\"\$(uv --version 2>&1)\" || true

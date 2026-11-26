@@ -22,11 +22,12 @@
 # Stages: rwx (pinned, checksum-verified) -> infisical -> resend -> railway -> entire
 # (with git-remote-entire, which git needs on PATH for entire:// remotes) ->
 # python3.13 installed ALONGSIDE 3.9 via dnf on AL2023 (SKIP elsewhere) ->
-# uv (pinned, checksum-verified) -> gtm CLIs -> optional gtm-sdk dependency
+# uv (pinned, checksum-verified) -> oz (pinned oz-stable .deb, unpacked without
+# root, checksum-verified; amd64 needs uv for zstd) -> gtm CLIs -> optional gtm-sdk dependency
 # recovery -> rwx auth (token validated BEFORE it is persisted, so a bad token
 # never overwrites a good one).
 #
-# Pins: RWX_PIN/INFISICAL_PIN/RESEND_PIN/RAILWAY_PIN/ENTIRE_PIN/UV_PIN and every sha256
+# Pins: RWX_PIN/INFISICAL_PIN/RESEND_PIN/RAILWAY_PIN/ENTIRE_PIN/OZ_PIN/UV_PIN and every sha256
 # are the single in-repo home of those constants; scripts/validate-pins.sh
 # checks them (uv is also cross-checked against envs/prebuilt and
 # envs/floxhub-provision). Bump: new pin + sha256s from the release's
@@ -561,6 +562,144 @@ railway_install() {
   record PASS railway "v${RAILWAY_PIN} (${path})"
 }
 
+# --- oz (Warp's agent CLI) ----------------------------------------------------
+# Pinned oz-stable .deb from releases.warp.dev (the versioned pool behind
+# Warp's apt repo; its Packages index publishes the sha256s below), fail-closed
+# sha256. A .deb is only an ar archive wrapping data.tar.xz, so python3 unpacks
+# it without root, dpkg, or ar: the tree lands in /opt/warpdotdev (root or
+# passwordless sudo) or ~/.local/opt/warpdotdev, with an oz symlink in the bin
+# dir. The binary finds resources/ beside itself, so the symlink targets the
+# real file and the tree stays together. Warp publishes no pinned macOS asset
+# (brew install --cask oz), so Darwin SKIPs. Bump runbook: new pin + the
+# amd64/arm64 sha256s from
+# https://releases.warp.dev/linux/deb/dists/stable/main/binary-<arch>/Packages.
+OZ_PIN="0.2026.11.18.08.17.stable.04"
+
+oz_install() {
+  if command -v oz >/dev/null 2>&1; then
+    record PASS oz "reused $(command -v oz) ($(oz --version 2>&1 | head -1 || true))"
+    return 0
+  fi
+  local arch sha256
+  case "$(uname -s)-$(uname -m)" in
+  Linux-x86_64)
+    arch="amd64"
+    sha256="fb02503e3e1f55213dfb11dcb12e5cddacf424f5af1383032ab6267f8c830060"
+    ;;
+  Linux-aarch64)
+    arch="arm64"
+    sha256="0498651bcd69b993b577156db472c969ac2b47b07d6d822f8666f116c88b0a1d"
+    ;;
+  Darwin-*)
+    record SKIP oz "no pinned Oz asset for macOS; install with: brew install --cask oz"
+    return 0
+    ;;
+  *)
+    log "error: no pinned oz asset for $(uname -s)-$(uname -m)"
+    return 1
+    ;;
+  esac
+  if ! command -v python3 >/dev/null 2>&1; then
+    log "error: python3 is required to unpack the oz .deb"
+    return 1
+  fi
+  local tag="v${OZ_PIN%.*}_${OZ_PIN##*.}"
+  local asset="oz-stable_${OZ_PIN}_${arch}.deb"
+  local dir="${WORK}/oz"
+  mkdir -p "${dir}/root"
+  if ! curl -fsSLo "${dir}/${asset}" "https://releases.warp.dev/stable/${tag}/${asset}"; then
+    return 1
+  fi
+  if ! checksum_verify "${sha256}" "${dir}/${asset}"; then
+    return 1
+  fi
+  cat >"${dir}/unpack.py" <<'OZ_UNPACK'
+import io
+import sys
+import tarfile
+
+deb, dest = sys.argv[1], sys.argv[2]
+with open(deb, "rb") as fh:
+    data = fh.read()
+if data[:8] != b"!<arch>\n":
+    sys.exit("not an ar archive")
+pos = 8
+name = payload = None
+while pos + 60 <= len(data):
+    member = data[pos : pos + 16].decode().strip().rstrip("/")
+    size = int(data[pos + 48 : pos + 58].decode().strip())
+    if member.startswith("data.tar"):
+        name, payload = member, data[pos + 60 : pos + 60 + size]
+        break
+    pos += 60 + size + (size & 1)
+if payload is None:
+    sys.exit("no data.tar member in the deb")
+if name.endswith(".zst"):
+    try:
+        from compression import zstd
+
+        raw = zstd.ZstdDecompressor().decompress(payload)
+    except ImportError:
+        try:
+            import zstandard
+        except ImportError:
+            sys.exit(3)
+        raw = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(payload)).read()
+    payload = raw
+prefix = "./opt/warpdotdev/oz-stable/"
+with tarfile.open(fileobj=io.BytesIO(payload)) as tar:
+    members = [m for m in tar.getmembers() if m.name.startswith(prefix)]
+    tar.extractall(dest, members=members)
+OZ_UNPACK
+  # amd64 debs carry a zstd data member, which python lacks before 3.14 and
+  # neither AL2023 nor Ubuntu ship a zstd CLI by default: python exits 3 and
+  # the unpack reruns under uv with a pinned zstandard wheel (checksum-
+  # verified .deb only; the wheel just decompresses it).
+  local unpack_rc=0
+  python3 "${dir}/unpack.py" "${dir}/${asset}" "${dir}/root" || unpack_rc=$?
+  if [[ ${unpack_rc} == 3 ]]; then
+    if ! command -v uv >/dev/null 2>&1; then
+      log "error: the oz .deb is zstd-compressed and uv is unavailable to supply a decompressor"
+      return 1
+    fi
+    unpack_rc=0
+    uv run --no-project --with zstandard==0.23.0 python "${dir}/unpack.py" "${dir}/${asset}" "${dir}/root" || unpack_rc=$?
+  fi
+  if [[ ${unpack_rc} != 0 ]]; then
+    log "error: could not unpack the oz .deb"
+    return 1
+  fi
+  local tree="${dir}/root/opt/warpdotdev/oz-stable"
+  if [[ ! -x "${tree}/oz" ]]; then
+    log "error: oz .deb did not yield an executable opt/warpdotdev/oz-stable/oz"
+    return 1
+  fi
+  local sudo_cmd root link
+  if sudo_cmd="$(priv_cmd)"; then
+    root="/opt/warpdotdev"
+    link="${LOCAL_BIN}/oz"
+  else
+    sudo_cmd=""
+    root="${HOME}/.local/opt/warpdotdev"
+    link="${HOME}/.local/bin/oz"
+  fi
+  if ! ${sudo_cmd} mkdir -p "${root}" "$(dirname "${link}")" ||
+    ! ${sudo_cmd} rm -rf "${root}/oz-stable" ||
+    ! ${sudo_cmd} cp -a "${tree}" "${root}/oz-stable" ||
+    ! ${sudo_cmd} ln -sfn "${root}/oz-stable/oz" "${link}"; then
+    log "error: could not place oz under ${root}"
+    return 1
+  fi
+  note_placement "${link}"
+  hash -r 2>/dev/null || true
+  local out
+  if ! out="$(oz --version 2>&1)"; then
+    log "error: installed oz failed its version check: ${out}"
+    return 1
+  fi
+  record PASS oz "${out%%$'\n'*} (${link} -> ${root}/oz-stable/oz)"
+}
+
 # --- python3.13 -------------------------------------------------------------
 # Installed ALONGSIDE the AL2023 default 3.9, never as a replacement: dnf's
 # shebang is the absolute #!/usr/bin/python3, so a /usr/local/bin/python3
@@ -907,6 +1046,7 @@ if railway_install; then :; else record FAIL railway "provisioning failed — se
 if entire_install; then :; else record FAIL entire "provisioning failed — see messages above"; FAILED=1; fi
 if python313_stage; then :; else record FAIL python3.13 "provisioning failed — see messages above"; FAILED=1; fi
 if uv_install; then :; else record FAIL uv "provisioning failed — see messages above"; FAILED=1; fi
+if oz_install; then :; else record FAIL oz "provisioning failed — see messages above"; FAILED=1; fi
 if gtm_install; then :; else record FAIL gtm "provisioning failed — see messages above"; FAILED=1; fi
 if gtm_sdk_dependency_repair; then :; else record FAIL gtm-sdk-deps "private SDK checkout or dependency retry failed — see messages above"; FAILED=1; fi
 if rwx_auth; then :; else FAILED=1; fi

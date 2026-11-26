@@ -12,8 +12,8 @@ It must match gtm-sdk's `.rwx/roborev.yml` (elviskahoro/gtm-sdk#1428); only the 
 ## Copy it to another repo
 
 1. Copy `.rwx/roborev.yml`; change the clone `repository:` and `GITHUB_REPOSITORY`.
-2. Commit a `.roborev.toml` with `agent` and `model` (the `kilo/` provider prefix is required for pi; `.rwx/roborev.yml` writes pi's `models.json` from the vault vars).
-3. Add RWX secret `KILO_API_KEY` and the `KILO_*` vars to the `roborev` vault (never inline the key).
+2. Commit a `.roborev.toml` with `agent` and `model` (the `kilo/` prefix is required for pi; `.rwx/roborev.yml` overrides the model from the `KILO_MODEL` var).
+3. Grant the repo access to the `roborev` RWX vault (secret `KILO_API_KEY`, vars `KILO_*`; allow public repositories for public repos). Never inline the key.
 4. `rwx lint .rwx/roborev.yml`, then `rwx run .rwx/roborev.yml --wait`.
 
 ## Bump pins

@@ -108,7 +108,7 @@ rwx run .rwx/ci.yml --wait        # outer loop: full CI
 
 `.rwx/sandbox.yml` in the article's example (`rwx-cloud/sandbox-example`): `on.cli.init.commit-sha` set from `${{ event.git.sha }}`; base `ubuntu:24.04` with `rwx/base` 1.0.3; a `code` task calling `git/clone` (`preserve-git-dir: true`, `repository`, `ref: ${{ init.commit-sha }}`, `github-token: ${{ github.token }}`); and a `sandbox` task that uses `code` and runs `rwx-sandbox`. Customize it for your project, and make sure repo access is configured.
 
-Agent workflow: iterate with `rwx sandbox exec -- <targeted tests>`, then confirm with `rwx run .rwx/ci.yml --wait` before pushing or opening a PR. Installing the [RWX skill](https://www.rwx.com/docs/ai) teaches agents to do this, or instruct it explicitly. The "seconds to start" claim is the vendor's own, and sync timing is worth testing in your workflow.
+Agent workflow: iterate with `rwx sandbox exec -- <targeted tests>`, then run only roborev (`rwx run .rwx/roborev.yml --wait`) before pushing; full CI runs on the PR and is watched after the push (`gh pr checks <n> --watch`). Installing the [RWX skill](https://www.rwx.com/docs/ai) teaches agents to do this, or instruct it explicitly. The "seconds to start" claim is the vendor's own, and sync timing is worth testing in your workflow.
 
 ## Pulling full logs
 

@@ -23,7 +23,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 ### What you can do
 
-- Tests run on RWX, not locally: pytest isn't installed in Conductor sandboxes, so don't install it or skip tests. Export the owner's `RWX_ACCESS_TOKEN_<OWNER>` as `RWX_ACCESS_TOKEN`, then `rwx run .rwx/<file>.yml --wait --fail-fast` (e.g. `.rwx/test-prompts.yml` runs the pytest suite and the prompts-drift check); `rwx logs <task-id>` for failures.
+- Tests run on RWX, not locally: pytest isn't installed in Conductor sandboxes, so don't install it or skip tests. Export the owner's `RWX_ACCESS_TOKEN_<OWNER>` as `RWX_ACCESS_TOKEN`, then `rwx run .rwx/<file>.yml --wait --fail-fast` (e.g. `.rwx/test-prompts.yml` runs the pytest suite and the prompts-drift check); `rwx logs <task-id>` for failures. These are not a pre-push gate: the only pipeline required before a push is roborev; tests, trunk-check and integration run on the PR and are watched after the push (`gh pr checks <n> --watch`).
 - `rwx run .rwx/<file>.yml --wait --fail-fast`: run CI on the working tree, uncommitted changes included, with no commit or push. `--target <task>` runs one task.
 - `rwx results` / `rwx runs list` / `rwx logs`: see what failed and pull the logs. Fix and re-run until green, then open the PR.
 - `rwx lint .rwx/<file>.yml`: validate after every edit to `.rwx/*.yml`.
@@ -35,7 +35,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 ### Roborev pipeline
 
-[`.rwx/roborev.yml`](.rwx/roborev.yml) is dispatch-only (`on: cli`; no PR check, comment or status) and needs secret `KILO_API_KEY`. The only way to run roborev: `rwx run .rwx/roborev.yml --wait`. It must match gtm-sdk's `.rwx/roborev.yml` (only repo name, clone URL, `GITHUB_REPOSITORY` differ); change both together. See [`skills/roborev-rwx/SKILL.md`](skills/roborev-rwx/SKILL.md).
+[`.rwx/roborev.yml`](.rwx/roborev.yml) is dispatch-only (`on: cli`; no PR check, comment or status) and reads secret `KILO_API_KEY` and vars `KILO_*` from the `roborev` RWX vault (model switch = change the `KILO_MODEL` var). The only way to run roborev: `rwx run .rwx/roborev.yml --wait`. It must match gtm-sdk's `.rwx/roborev.yml` (only repo name, clone URL, `GITHUB_REPOSITORY` differ); change both together. See [`skills/roborev-rwx/SKILL.md`](skills/roborev-rwx/SKILL.md).
 
 ### No-attribution check
 

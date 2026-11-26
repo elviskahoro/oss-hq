@@ -11,3 +11,18 @@ tmp/
 .env.local
 
 __pycache__/
+
+# Gas City (gc) generated state and skill installs; local only.
+.gc/
+.beads.gate.lock
+plans/
+.opencode/skills/.gc-skill-ownership.json
+.opencode/skills/core.gc-*
+.opencode/skills/gc.*
+.pi/extensions/gc-hooks.js
+.agents/skills/.gc-skill-ownership.json
+.agents/skills/core.gc-*
+.agents/skills/gc.*
+.claude/skills/.gc-skill-ownership.json
+.claude/skills/core.gc-*
+.claude/skills/gc.*

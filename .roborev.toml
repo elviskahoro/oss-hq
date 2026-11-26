@@ -3,8 +3,8 @@
 # skills/roborev-rwx/SKILL.md). Reviews are blocking; no post-commit
 # auto-review hook is used.
 #
-# Pi via the Kilo gateway (needs KILO_API_KEY in the env; on RWX it comes from
-# vaults.roborev.secrets.KILO_API_KEY, never a value in this file).
+# Review with the pi agent via the Kilo gateway (KILO_API_KEY comes from the
+# RWX `roborev` vault). The model line is only a default; .rwx/roborev.yml
+# overrides it from the vault var KILO_MODEL.
 agent = "pi"
-# Default only; .rwx/roborev.yml overrides it from the roborev vault var KILO_MODEL.
 model = "kilo/deepseek/deepseek-v4-flash"
