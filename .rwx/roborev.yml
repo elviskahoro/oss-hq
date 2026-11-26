@@ -4,6 +4,7 @@
 #   rwx run .rwx/roborev.yml --wait
 # It reviews local work (committed or not) against origin/main with the model in
 # .roborev.toml (pi + Kilo gateway) and fails when roborev reports findings.
+# The logic lives in the elviskahoro/roborev package (rwx-packages/roborev).
 on:
   cli:
     init:
@@ -30,83 +31,18 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ github.token }}
-
-  - key: node
-    call: nodejs/install 1.2.1
-    with:
-      node-version: 24.22.3
+      fetch-full-depth: true
+      github-token: ${{ github['elviskahoro'].token }}
 
   - key: roborev
-    use: [code, node]
-    cache: false
-    env:
-      GITHUB_REPOSITORY: elviskahoro/oss-hq
-      GH_TOKEN: ${{ github.token }}
-      # trunk-ignore(semgrep/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret): task-scoped `env:` in an RWX run definition, not a GHA workflow-level env block.
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      ROBOREV_VERSION: 0.63.0
-      PI_VERSION: 1.4.0
-      # Kilo settings come from vars in the roborev vault (no repo change to switch model).
-      KILO_MODEL: ${{ vaults.roborev.vars.KILO_MODEL }}
-      KILO_BASE_URL: ${{ vaults.roborev.vars.KILO_BASE_URL }}
-      KILO_ORG_ID: ${{ vaults.roborev.vars.KILO_ORG_ID }}
-      KILO_CONTEXT: ${{ vaults.roborev.vars.KILO_CONTEXT }}
-      KILO_MAX_OUTPUT: ${{ vaults.roborev.vars.KILO_MAX_OUTPUT }}
-    run: |
-      set -euo pipefail
-      # Pinned to the version in .flox/env/manifest.toml (the installer only
-      # fetches latest).
-      mkdir -p "$HOME/.local/bin"
-      curl -fsSL "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz" \
-        | tar -xz -C "$HOME/.local/bin" roborev
-      export PATH="$HOME/.local/bin:$PATH"
-      roborev version
-      # .roborev.toml selects the pi agent; roborev finds no agent without it.
-      npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
-      pi --version
-      git config --global credential.helper store
-      echo "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials
-      chmod 600 ~/.git-credentials
-      # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
-      export KILO_API_KEY="${{ vaults.roborev.secrets.KILO_API_KEY }}"
-      [ -n "$KILO_API_KEY" ] || { echo "error: KILO_API_KEY unavailable" >&2; exit 1; }
-      # Register the Kilo gateway as a pi provider (pi has no built-in one).
-      mkdir -p "$HOME/.pi/agent"
-      node -e '
-        const e = process.env;
-        require("fs").writeFileSync(e.HOME + "/.pi/agent/models.json", JSON.stringify({providers: {kilo: {
-          name: "Kilo Gateway", baseUrl: e.KILO_BASE_URL, api: "openai-completions",
-          apiKey: "$KILO_API_KEY", authHeader: true,
-          headers: {"X-KiloCode-OrganizationId": e.KILO_ORG_ID},
-          models: [{id: e.KILO_MODEL, name: e.KILO_MODEL, contextWindow: +e.KILO_CONTEXT, maxTokens: +e.KILO_MAX_OUTPUT}]
-        }}}, null, 2));
-      '
-      # A pushed commit is cloned shallow, so merge-base would find no shared
-      # history with main; unshallow while fetching main.
-      unshallow=()
-      [ "$(git rev-parse --is-shallow-repository)" = true ] && unshallow=(--unshallow)
-      git fetch --no-tags "${unshallow[@]}" origin main:refs/remotes/origin/main
-      # `rwx run` ships local work as a patch on top of the nearest pushed
-      # commit, so commit it here or roborev (committed ranges only) sees an
-      # empty diff. Merge-base, not origin/main, so a main that moved ahead
-      # of the clone isn't reviewed in reverse.
-      if [ -n "$(git status --porcelain)" ]; then
-        git add -A
-        git -c user.name=roborev-ci -c user.email=roborev-ci@localhost commit -q -m "local changes under review"
-      fi
-      # Select the model from the vault after the commit above, so this edit is
-      # not part of the reviewed diff. .roborev.toml's model line is only a default.
-      sed -i "s|^model = .*|model = \"kilo/${KILO_MODEL}\"|" .roborev.toml
-      base="$(git merge-base origin/main HEAD)"
-      echo "reviewing ${base}..HEAD"
-      git diff --stat "${base}..HEAD" | tail -5
-      args=(--ref "${base}..HEAD")
-      # `roborev ci review` exits 0 even with findings, so gate on the verdict
-      # header ("Review Passed" vs "Review Complete"/"Review Failed"). Fails
-      # closed if no verdict is printed.
-      roborev ci review "${args[@]}" 2>&1 | tee roborev-output.txt
-      if ! grep -q "roborev: Review Passed" roborev-output.txt; then
-        echo "roborev did not pass: see findings above" >&2
-        exit 1
-      fi
+    use: code
+    call: e99c95fe2b132b6b8db3b9004246da9ef53cefd228fbc7cb8fbe6191b76e6460
+    with:
+      kilo-model: ${{ vaults.roborev.vars.KILO_MODEL }}
+      kilo-base-url: ${{ vaults.roborev.vars.KILO_BASE_URL }}
+      kilo-org-id: ${{ vaults.roborev.vars.KILO_ORG_ID }}
+      kilo-context: ${{ vaults.roborev.vars.KILO_CONTEXT }}
+      kilo-max-output: ${{ vaults.roborev.vars.KILO_MAX_OUTPUT }}
+      kilo-api-key: ${{ vaults.roborev.secrets.KILO_API_KEY }}
+      repository: elviskahoro/oss-hq
+      github-token: ${{ github['elviskahoro'].token }}
