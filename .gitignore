@@ -16,8 +16,10 @@ __pycache__/
 .gc/
 .beads.gate.lock
 plans/
-.opencode/
-.pi/
+.opencode/skills/.gc-skill-ownership.json
+.opencode/skills/core.gc-*
+.opencode/skills/gc.*
+.pi/extensions/gc-hooks.js
 .agents/skills/.gc-skill-ownership.json
 .agents/skills/core.gc-*
 .agents/skills/gc.*
