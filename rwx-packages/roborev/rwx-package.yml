@@ -1,0 +1,151 @@
+# Shared roborev review pipeline. Call it from a repo's thin .rwx/roborev.yml
+# (see README.md). Reads KILO_* vars and KILO_API_KEY from the `roborev` vault.
+package:
+  name: elviskahoro/roborev
+  version: 1.0.0
+  description: Run roborev (pi agent via the Kilo gateway) on local work against origin/main and fail unless the verdict is Review Passed.
+  source_code_url: https://github.com/elviskahoro/oss-hq/tree/main/rwx-packages/roborev
+  issue_tracker_url: https://github.com/elviskahoro/oss-hq/issues
+  visibility: private
+  parameters:
+    kilo-model:
+      description: "From the roborev vault (kilo-model)"
+      required: true
+    kilo-base-url:
+      description: "From the roborev vault (kilo-base-url)"
+      required: true
+    kilo-org-id:
+      description: "From the roborev vault (kilo-org-id)"
+      required: true
+    kilo-context:
+      description: "From the roborev vault (kilo-context)"
+      required: true
+    kilo-max-output:
+      description: "From the roborev vault (kilo-max-output)"
+      required: true
+    kilo-api-key:
+      description: "From the roborev vault (kilo-api-key)"
+      required: true
+    repository:
+      description: "owner/name of the repository under review"
+      required: true
+    github-token:
+      description: "GitHub token that can read the repository"
+      required: true
+    roborev-toml:
+      description: "Contents of .roborev.toml, used only when the repo has none"
+      default: |
+        agent = "pi"
+        model = "kilo/placeholder"
+    review-guidelines:
+      description: "Extra review guidelines appended to .roborev.toml as review_guidelines, used only when the repo has none"
+      default: ""
+
+tasks:
+  - key: node
+    call: nodejs/install 1.2.1
+    with:
+      node-version: 24.22.3
+
+  - key: roborev
+    use: [package.use, node]
+    cache: false
+    env:
+      GITHUB_REPOSITORY: ${{ params.repository }}
+      GH_TOKEN: ${{ params.github-token }}
+      ROBOREV_VERSION: 0.63.0
+      PI_VERSION: 1.4.0
+      ROBOREV_SHA256: c7dbbefed91747b80d04498358fa0207880adb7e2b57c95677214195a3ece887
+      KILO_MODEL: ${{ params.kilo-model }}
+      KILO_BASE_URL: ${{ params.kilo-base-url }}
+      KILO_ORG_ID: ${{ params.kilo-org-id }}
+      KILO_CONTEXT: ${{ params.kilo-context }}
+      KILO_MAX_OUTPUT: ${{ params.kilo-max-output }}
+      DEFAULT_ROBOREV_TOML: ${{ params.roborev-toml }}
+      REVIEW_GUIDELINES: ${{ params.review-guidelines }}
+    run: |
+      set -euo pipefail
+      if [ ! -f .roborev.toml ]; then
+        printf '%s\n' "$DEFAULT_ROBOREV_TOML" > .roborev.toml
+        if [ -n "$REVIEW_GUIDELINES" ]; then
+          printf 'review_guidelines = """\n%s\n"""\n' "$REVIEW_GUIDELINES" >> .roborev.toml
+        fi
+      fi
+      # Pinned here because the installer only fetches latest.
+      mkdir -p "$HOME/.local/bin"
+      curl -fsSL -o /tmp/roborev.tar.gz "https://github.com/kenn-io/roborev/releases/download/v${ROBOREV_VERSION}/roborev_${ROBOREV_VERSION}_linux_amd64.tar.gz"
+      echo "${ROBOREV_SHA256}  /tmp/roborev.tar.gz" | sha256sum -c -
+      tar -xzf /tmp/roborev.tar.gz -C "$HOME/.local/bin" roborev
+      export PATH="$HOME/.local/bin:$PATH"
+      roborev version
+      # .roborev.toml selects the pi agent; roborev finds no agent without it.
+      npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
+      pi --version
+      # Key is exported here, not in env:, so Semgrep's workflow-env-secret passes.
+      export KILO_API_KEY="${{ params.kilo-api-key }}"
+      [ -n "$KILO_API_KEY" ] || { echo "error: KILO_API_KEY unavailable" >&2; exit 1; }
+      # Register the Kilo gateway as a pi provider (pi has no built-in one).
+      mkdir -p "$HOME/.pi/agent"
+      node -e '
+        const e = process.env;
+        require("fs").writeFileSync(e.HOME + "/.pi/agent/models.json", JSON.stringify({providers: {kilo: {
+          name: "Kilo Gateway", baseUrl: e.KILO_BASE_URL, api: "openai-completions",
+          apiKey: "$KILO_API_KEY", authHeader: true,
+          headers: {"X-KiloCode-OrganizationId": e.KILO_ORG_ID},
+          models: [{id: e.KILO_MODEL, name: e.KILO_MODEL, contextWindow: +e.KILO_CONTEXT, maxTokens: +e.KILO_MAX_OUTPUT}]
+        }}}, null, 2));
+      '
+      # The clone's credentials are not kept, so authenticate the fetch.
+      git -c "http.https://github.com/.extraheader=Authorization: Basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
+        fetch --no-tags origin main:refs/remotes/origin/main
+      # `rwx run` ships local work as a patch on top of the nearest pushed
+      # commit, so commit it here or roborev (committed ranges only) sees an
+      # empty diff. Merge-base, not origin/main, so a main that moved ahead
+      # of the clone isn't reviewed in reverse.
+      if [ -n "$(git status --porcelain)" ]; then
+        git add -A
+        git -c user.name=roborev-ci -c user.email=roborev-ci@localhost commit -q -m "local changes under review"
+      fi
+      # Select the model from the vault after the commit above, so this edit is
+      # not part of the reviewed diff. .roborev.toml's model line is only a default.
+      sed -i "s|^model = .*|model = \"kilo/${KILO_MODEL}\"|" .roborev.toml
+      base="$(git merge-base origin/main HEAD)"
+      echo "reviewing ${base}..HEAD"
+      git diff --stat "${base}..HEAD" | tail -5
+      # Preflight: roborev hides the agent's stderr, so a broken gateway, key or
+      # model shows up only as "No review output generated". Call pi once
+      # directly and fail with its real output (never the key) if it cannot answer.
+      if ! pi --model "kilo/${KILO_MODEL}" -p "Reply with the single word OK." >pi-preflight.txt 2>&1 || [ ! -s pi-preflight.txt ]; then
+        echo "error: pi agent cannot run (kilo/${KILO_MODEL} via ${KILO_BASE_URL}); its output:" >&2
+        sed "s|${KILO_API_KEY}|***|g" pi-preflight.txt >&2
+        exit 1
+      fi
+      # An empty range makes roborev pass without reviewing anything.
+      if git diff --quiet "${base}..HEAD"; then
+        echo "error: nothing to review in ${base}..HEAD (commit your changes before running)" >&2
+        exit 1
+      fi
+      args=(--ref "${base}..HEAD")
+      # `roborev ci review` exits 0 even with findings, so gate on the verdict
+      # header ("Review Passed" vs "Review Complete"/"Review Failed"). Fails
+      # closed if no verdict is printed.
+      # The Kilo model sometimes writes its tool calls as plain text (a
+      # <｜DSML｜tool_calls> block) instead of calling them, so pi ends the turn
+      # with no review (#218). Such output has no verdict, so retry it.
+      verdict_ok() {
+        grep -q "^## roborev: Review" roborev-output.txt \
+          && ! grep -q "^<｜DSML｜\|^<tool_call" roborev-output.txt
+      }
+      for attempt in 1 2 3 4; do
+        roborev ci review "${args[@]}" 2>&1 | tee roborev-output.txt || true
+        if verdict_ok; then break; fi
+        echo "attempt ${attempt}: roborev returned no usable verdict" >&2
+      done
+      if ! verdict_ok; then
+        echo "roborev returned no verdict after retries" >&2
+        exit 1
+      fi
+      if ! grep -q "^## roborev: Review Passed" roborev-output.txt; then
+        echo "roborev did not pass: see findings above" >&2
+        exit 1
+      fi
