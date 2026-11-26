@@ -48,7 +48,7 @@ tasks:
       ref: ${{ init.ref }}
       submodules: false
       preserve-git-dir: true
-      github-token: ${{ github['elviskahoro'].token }}
+      github-token: ${{ github.token }}
 
   - key: pullfrog
     use: code
