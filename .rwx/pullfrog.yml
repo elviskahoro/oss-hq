@@ -52,7 +52,7 @@ tasks:
 
   - key: pullfrog
     use: code
-    call: elviskahoro/pullfrog 1.0.0
+    call: elviskahoro/pullfrog 1.0.1
     with:
       repository: elviskahoro/oss-hq
       pr: ${{ init.pr }}
