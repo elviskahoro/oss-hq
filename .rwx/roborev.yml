@@ -36,7 +36,7 @@ tasks:
 
   - key: roborev
     use: code
-    call: e99c95fe2b132b6b8db3b9004246da9ef53cefd228fbc7cb8fbe6191b76e6460
+    call: elviskahoro/roborev 1.0.0
     with:
       kilo-model: ${{ vaults.roborev.vars.KILO_MODEL }}
       kilo-base-url: ${{ vaults.roborev.vars.KILO_BASE_URL }}

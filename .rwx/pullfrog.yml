@@ -1,0 +1,64 @@
+# Pullfrog review gate on RWX (no GitHub Actions, no hosted Pullfrog app).
+# The review logic lives in the elviskahoro/pullfrog package (rwx-packages/pullfrog).
+# On every same-repo PR to main, Pullfrog reviews the PR and returns a
+# structured verdict ({approve, summary}). The run fails unless approve is true,
+# and its status is "RWX: pullfrog-approval". Pullfrog posts nothing on the PR:
+# its findings are printed at the end of this run's log.
+# Required via: GitHub ruleset on main (required status check "RWX: pullfrog-approval").
+# Manual run (no status posted): rwx run .rwx/pullfrog.yml --init pr=123
+on:
+  github:
+    pull_request:
+      # Same-repo PRs only: a fork PR must not get the Kilo key or a run
+      # whose prompt it controls.
+      if: ${{ event.github.pull_request.pull_request.base.ref == 'main' && event.github.pull_request.pull_request.head.repo.full_name == 'elviskahoro/oss-hq' }}
+      init:
+        pr: ${{ event.github.pull_request.number }}
+        ref: ${{ event.git.sha }}
+      status-checks:
+        name: pullfrog-approval
+  cli:
+    init:
+      pr: ""
+      ref: main
+
+# capacity must be a literal number, so the roborev vault var
+# PULLFROG_POOL_CAPACITY picks between two pools: "5" selects the wide pool,
+# anything else (or unset) the default capacity-1 pool.
+concurrency-pools:
+  - id: oss-hq/pullfrog-pr-${{ init.pr }}
+    if: ${{ vaults.roborev.vars.PULLFROG_POOL_CAPACITY != '5' }}
+    capacity: 1
+    on-overflow: cancel-running
+  - id: oss-hq/pullfrog-pr-${{ init.pr }}-wide
+    if: ${{ vaults.roborev.vars.PULLFROG_POOL_CAPACITY == '5' }}
+    capacity: 5
+    on-overflow: cancel-running
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.2.0
+
+tasks:
+  - key: code
+    call: git/clone 2.4.1
+    cache: false
+    with:
+      repository: https://github.com/elviskahoro/oss-hq.git
+      ref: ${{ init.ref }}
+      submodules: false
+      preserve-git-dir: true
+
+  - key: pullfrog
+    use: code
+    call: elviskahoro/pullfrog 1.0.1
+    with:
+      repository: elviskahoro/oss-hq
+      pr: ${{ init.pr }}
+      kilo-model: ${{ vaults.roborev.vars.KILO_MODEL }}
+      kilo-base-url: ${{ vaults.roborev.vars.KILO_BASE_URL }}
+      kilo-org-id: ${{ vaults.roborev.vars.KILO_ORG_ID }}
+      kilo-context: ${{ vaults.roborev.vars.KILO_CONTEXT }}
+      kilo-max-output: ${{ vaults.roborev.vars.KILO_MAX_OUTPUT }}
+      kilo-api-key: ${{ vaults.roborev.secrets.KILO_API_KEY }}
+      github-token: ${{ vaults.roborev.github-apps.rwx-automation-elviskahoro.token }}

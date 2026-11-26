@@ -3,7 +3,7 @@
 #
 # The roborev version (pinned in rwx-packages/roborev/rwx-package.yml), the uv pin and the
 # RESEND/ENTIRE pins are checked here. Sync surfaces:
-#   1. roborev: rwx-packages/roborev/rwx-package.yml ROBOREV_VERSION == envs/repackage's
+#   1. roborev: rwx-packages/roborev ROBOREV_VERSION == envs/repackage's
 #      [build.roborev] version == envs/floxhub-provision's roborev.version
 #   4. startup-script paste-safety (no triple-quotes / line-continuations)
 #   5. uv: UV_PIN == envs/prebuilt == envs/floxhub-provision uv.version
@@ -57,15 +57,15 @@ awk 'BEGIN { f = 0 } /^\[build\.roborev\]$/ { f = 1; next } /^\[/ { f = 0 } f' \
   "${REPACKAGE_MANIFEST}" >"${WORK}/repackage_section"
 
 # 1. roborev version: roborev now runs only as an RWX task (issue #185), so
-# rwx-packages/roborev/rwx-package.yml is its pin home; the Flox manifests must still agree.
+# the elviskahoro/roborev package is its pin home; the Flox manifests must still agree.
 RWX_YML="${REPO_ROOT}/rwx-packages/roborev/rwx-package.yml"
 PIN="$(sed -n 's/^ *ROBOREV_VERSION: *\([0-9][0-9.]*\).*/\1/p' "${RWX_YML}" | head -1)"
 REPACKAGE_VERSION="$(sed -n 's/^version = "\([^"]*\)".*/\1/p' "${WORK}/repackage_section" | head -1)"
 PROVISION_VERSION="$(sed -n 's/^roborev\.version *= *"\^\{0,1\}\([^"]*\)".*/\1/p' "${PROVISION_MANIFEST}")"
 if [[ -n "${PIN}" && "${PIN}" == "${REPACKAGE_VERSION}" && "${PIN}" == "${PROVISION_VERSION}" ]]; then
-  pass "roborev version" "rwx package ${PIN} == repackage ${REPACKAGE_VERSION} == floxhub-provision ^${PROVISION_VERSION}"
+  pass "roborev version" "rwx pipeline ${PIN} == repackage ${REPACKAGE_VERSION} == floxhub-provision ^${PROVISION_VERSION}"
 else
-  fail "roborev version" "drift: rwx-package.yml=${PIN:-<missing>}, repackage=${REPACKAGE_VERSION:-<missing>}, floxhub-provision=${PROVISION_VERSION:-<missing>}"
+  fail "roborev version" "drift: rwx-packages/roborev=${PIN:-<missing>}, repackage=${REPACKAGE_VERSION:-<missing>}, floxhub-provision=${PROVISION_VERSION:-<missing>}"
 fi
 
 # 4. Paste-safety of the startup script. Its whole purpose includes being
