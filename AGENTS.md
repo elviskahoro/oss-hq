@@ -35,7 +35,7 @@ Agents run CI on [RWX](https://www.rwx.com) before opening a PR. Full detail: [`
 
 ### Roborev pipeline
 
-[`.rwx/roborev.yml`](.rwx/roborev.yml) is dispatch-only (`on: cli`; no PR check, comment or status) and reads secret `KILO_API_KEY` and vars `KILO_*` from the `roborev` RWX vault (model switch = change the `KILO_MODEL` var). The only way to run roborev: `rwx run .rwx/roborev.yml --wait`. It must match gtm-sdk's `.rwx/roborev.yml` (only repo name, clone URL, `GITHUB_REPOSITORY` differ); change both together. See [`skills/roborev-rwx/SKILL.md`](skills/roborev-rwx/SKILL.md).
+[`.rwx/roborev.yml`](.rwx/roborev.yml) is dispatch-only (`on: cli`; no PR check, comment or status) and reads secret `KILO_API_KEY` and vars `KILO_*` from the `roborev` RWX vault (model switch = change the `KILO_MODEL` var). The only way to run roborev: `rwx run .rwx/roborev.yml --wait`. The logic lives in the private RWX packages `elviskahoro/roborev` and `elviskahoro/pullfrog` (sources in [`rwx-packages/`](rwx-packages/), published with `rwx package build --publish` from each directory after a version bump); a repo's `.rwx/roborev.yml` and `.rwx/pullfrog.yml` are thin wrappers that pass the repo name and the vault values. Other repos adopt them by copying the two wrappers (packages are org-scoped, so repos outside the elviskahoro RWX org need their own publish). See [`skills/roborev-rwx/SKILL.md`](skills/roborev-rwx/SKILL.md).
 
 ### No-attribution check
 

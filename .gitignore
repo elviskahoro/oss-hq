@@ -26,3 +26,4 @@ plans/
 .claude/skills/.gc-skill-ownership.json
 .claude/skills/core.gc-*
 .claude/skills/gc.*
+.rwx/downloads/

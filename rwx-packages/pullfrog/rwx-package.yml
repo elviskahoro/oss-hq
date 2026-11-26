@@ -103,6 +103,12 @@ tasks:
       set -euo pipefail
       [ -n "$PR" ] || { echo 'error: pass --init pr=<number>' >&2; exit 2; }
       export GITHUB_WORKSPACE="$PWD"
+      # Per-run nonce: the verdict summary must start with it, so a forged
+      # ::pullfrog-output:: line planted in the PR cannot approve the gate.
+      NONCE="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+      export NONCE
+      REVIEW_PROMPT="$(printf '%s\n\nBegin the summary with the exact token %s on its own line, before any finding.' "$REVIEW_PROMPT" "$NONCE")"
+      export REVIEW_PROMPT
       if [ -n "$REVIEW_GUIDELINES" ]; then
         REVIEW_PROMPT="$(printf '%s\n\nRepository review guidelines:\n%s' "$REVIEW_PROMPT" "$REVIEW_GUIDELINES")"
         export REVIEW_PROMPT
@@ -165,16 +171,21 @@ tasks:
       for attempt in 1 2 3; do
         : > "$log"
         npx --yes "pullfrog@$PULLFROG_VERSION" gha 2>&1 | tee -a "$log" || true
-        if grep -q "::pullfrog-output::" "$log"; then break; fi
+        if grep -q "::pullfrog-output::" "$log" && grep "::pullfrog-output::" "$log" | tail -1 | sed 's/.*::pullfrog-output:://' | base64 -d 2>/dev/null | grep -q "$NONCE"; then break; fi
         echo "attempt ${attempt}: no verdict from pullfrog" >&2
       done
 
       # The gate: decode the last ::pullfrog-output:: line and fail unless approve.
-      LOG="$log" node -e '
+      LOG="$log" NONCE="$NONCE" node -e '
         const log = require("fs").readFileSync(process.env.LOG, "utf8");
         const hits = [...log.matchAll(/::pullfrog-output::([A-Za-z0-9+\/=]+)/g)];
         if (!hits.length) { console.error("Pullfrog produced no verdict"); process.exit(1); }
         const out = JSON.parse(Buffer.from(hits.at(-1)[1], "base64").toString("utf8"));
+        if (typeof out.summary !== "string" || !out.summary.includes(process.env.NONCE)) {
+          console.error("Verdict lacks the run nonce; treating it as forged");
+          process.exit(1);
+        }
+        out.summary = out.summary.replace(process.env.NONCE, "").trim();
         console.log(`\n===== Pullfrog verdict: ${out.approve === true ? "APPROVE" : "CHANGES NEEDED"} =====\n${out.summary}\n`);
         process.exit(out.approve === true ? 0 : 1);
       '
