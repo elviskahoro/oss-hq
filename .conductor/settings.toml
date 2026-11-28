@@ -30,7 +30,7 @@ fi
 export PATH="${HOME}/.local/bin:${PATH}"
 
 # The whole point of this repo: run the gtm-sdk#445 hypothesis harness on a
-# fresh sandbox. It never hard-fails; findings land in findings/report-*.md.
+# fresh sandbox. It never hard-fails; findings land in findings/report-*.md (uncommitted).
 CONDUCTOR_STARTUP_MODE=1 bash scripts/sandbox-test.sh
 
 # Expose infisical to subsequent agent commands. Resolution lives in

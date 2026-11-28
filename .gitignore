@@ -27,3 +27,5 @@ plans/
 .claude/skills/core.gc-*
 .claude/skills/gc.*
 .rwx/downloads/
+findings/report-*.md
+findings/full-log-*.txt

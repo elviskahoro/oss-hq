@@ -23,8 +23,7 @@
 # task workspace (confirmed by run 5da9148f — repo content only appears when
 # a pipeline clones it itself, which is why every gtm-sdk pipeline begins
 # with a git/clone task). The smoke script is therefore embedded below
-# instead of living in scripts/ — the yaml is the whole harness. See
-# findings/gtm-903-*.md for the run report.
+# instead of living in scripts/ — the yaml is the whole harness.
 #
 # No cron trigger: this is a validation harness, not a recurring pipeline,
 # and the sandbox repo deliberately carries no cron-shaped surface.

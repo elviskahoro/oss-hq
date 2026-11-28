@@ -187,6 +187,6 @@ read too.
 | Migrate a GitHub Actions workflow to RWX | [`migrate-from-gha`](skills/migrate-from-gha/SKILL.md) |
 | Review an RWX config migrated from GitHub Actions | [`review-gha-migration`](skills/review-gha-migration/SKILL.md) |
 
-The experiment results are in [`findings/`](findings/README.md), and
+Research notes are in [`findings/`](findings/README.md), and
 [issue #16](https://github.com/elviskahoro/oss-hq/issues/16)
 has the Flox verdict.

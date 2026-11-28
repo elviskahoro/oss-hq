@@ -29,4 +29,3 @@ bd linear status --json
 - Linear stays the source of truth. This creates a separate stealth `.beads` DB with no Dolt remote.
 - `LINEAR_API_KEY` comes from Infisical. For an already-initialized DB, the explicit equivalent is `bd linear sync --pull --relations` with that key in the environment.
 - It refuses to reuse a `.beads` DB that already has a Dolt remote, so the two workflows never mix. Re-runs update existing issues instead of duplicating them.
-- See `findings/linear-beads-integration-report.md` for the worktree database redirect hazard.

@@ -42,4 +42,4 @@ TEST_FLOXHUB_PROVISION=1 FLOXHUB_TOKEN=<t> bash scripts/sandbox-test.sh  # + Sta
 - `envs/repackage` carries `curl`/`gnutar`/`gzip`/`coreutils`/`cacert` as build deps, because `sandbox = "off"` builds run inside the activated env. A repo that adopts this shape inherits those deps, or should move the builds to a dedicated publish env.
 - Out of scope: the beads DB bootstrap and `uv sync`. Tool provisioning is the thing under test.
 
-Commit new findings back, and add the run to the index in `findings/README.md`.
+Run reports are local evidence; do not commit `findings/report-*` or `findings/full-log-*`.
